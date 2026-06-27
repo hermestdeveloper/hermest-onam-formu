@@ -2,9 +2,10 @@
 
 import { ChangeEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { renderCollageBlob, loadImage } from "@/lib/collage";
+import { buildUploadItems, uploadItems } from "@/lib/upload";
 import PatientSearch from "@/app/components/PatientSearch";
 import { countryOptions, resolveCountryCode } from "@/lib/country";
-import type { Patient, Slot } from "@/lib/types";
+import type { Patient, Slot, UploadItem, UploadStatus } from "@/lib/types";
 
 const initialSlots: Slot[] = [
   { id: "front", label: "Front View", hint: "Frontal documentation", dataUrl: null, file: null },
@@ -26,6 +27,9 @@ export default function Home() {
   const [treatmentMethod, setTreatmentMethod] = useState(treatmentMethodOptions[0]);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<Record<string, UploadStatus>>({});
+  const [uploadItemsList, setUploadItemsList] = useState<UploadItem[]>([]);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
@@ -208,28 +212,54 @@ export default function Home() {
     setSignatureDataUrl(null);
   };
 
-  const exportCollage = async () => {
-    setIsExporting(true);
-
+  const runUploads = async (patientId: string | number, items: UploadItem[]) => {
+    setIsUploading(true);
+    setUploadStatus(Object.fromEntries(items.map((i) => [i.key, "pending"])));
     try {
+      await uploadItems(patientId, items, (key, status) =>
+        setUploadStatus((prev) => ({ ...prev, [key]: status }))
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!selectedPatient) return;
+    setIsExporting(true);
+    try {
+      const now = new Date();
       const blob = await renderCollageBlob({
         slots,
         patientName,
         country: selectedCountry,
         treatmentMethod,
         signatureDataUrl,
-        date: new Date(),
+        date: now,
       });
 
+      // Always download locally first.
       const link = document.createElement("a");
-      const stamp = new Date().toISOString().slice(0, 10);
+      const stamp = now.toISOString().slice(0, 10);
       link.download = `hermest-visual-consent-sheet-${stamp}.png`;
       link.href = URL.createObjectURL(blob);
       link.click();
       setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+
+      // Then upload sheet + filled photos to the CRM.
+      const items = buildUploadItems(blob, slots, treatmentMethod, now);
+      setUploadItemsList(items);
+      await runUploads(selectedPatient.id, items);
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const retryFailed = async () => {
+    if (!selectedPatient) return;
+    const failed = uploadItemsList.filter((i) => uploadStatus[i.key] === "error");
+    if (failed.length === 0) return;
+    await runUploads(selectedPatient.id, failed);
   };
 
   return (
@@ -320,11 +350,34 @@ export default function Home() {
           <p className="stat-note">Prepared for clinical review and patient approval</p>
           <button
             className="download-button"
-            onClick={exportCollage}
-            disabled={filledCount === 0 || isExporting}
+            onClick={handleDownload}
+            disabled={filledCount === 0 || !selectedPatient || isExporting || isUploading}
           >
-            {isExporting ? "Preparing..." : "Download Consent Sheet"}
+            {isExporting ? "Preparing..." : isUploading ? "Uploading..." : "Download Consent Sheet"}
           </button>
+
+          {uploadItemsList.length > 0 ? (
+            <div className="upload-panel">
+              <ul>
+                {uploadItemsList.map((item) => {
+                  const status = uploadStatus[item.key] ?? "pending";
+                  const icon =
+                    status === "success" ? "✓" : status === "error" ? "✗" : status === "uploading" ? "…" : "•";
+                  return (
+                    <li key={item.key} className={`upload-row ${status}`}>
+                      <span className="upload-icon">{icon}</span>
+                      <span className="upload-name">{item.filename}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+              {uploadItemsList.some((i) => uploadStatus[i.key] === "error") && !isUploading ? (
+                <button type="button" className="secondary-button" onClick={retryFailed}>
+                  Başarısızları tekrar dene
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </section>
 
