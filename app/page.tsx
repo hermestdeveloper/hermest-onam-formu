@@ -2,71 +2,18 @@
 
 import { ChangeEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { renderCollageBlob, loadImage } from "@/lib/collage";
-
-type Slot = {
-  id: string;
-  label: string;
-  hint: string;
-  dataUrl: string | null;
-};
-
-type CountryOption = {
-  code: string;
-  flag: string;
-  name: string;
-};
+import PatientSearch from "@/app/components/PatientSearch";
+import { countryOptions, resolveCountryCode } from "@/lib/country";
+import type { Patient, Slot } from "@/lib/types";
 
 const initialSlots: Slot[] = [
-  { id: "front", label: "Front View", hint: "Frontal documentation", dataUrl: null },
-  { id: "top", label: "Top View", hint: "Crown and top area", dataUrl: null },
-  { id: "right", label: "Right Profile", hint: "Right-side angle", dataUrl: null },
-  { id: "left", label: "Left Profile", hint: "Left-side angle", dataUrl: null },
+  { id: "front", label: "Front View", hint: "Frontal documentation", dataUrl: null, file: null },
+  { id: "top", label: "Top View", hint: "Crown and top area", dataUrl: null, file: null },
+  { id: "right", label: "Right Profile", hint: "Right-side angle", dataUrl: null, file: null },
+  { id: "left", label: "Left Profile", hint: "Left-side angle", dataUrl: null, file: null },
 ];
 
 const treatmentMethodOptions = ["DHI METHOD", "SAPPHIRE FUE", "UNIQUE FUE"];
-const countryCodes = [
-  "AF", "AX", "AL", "DZ", "AS", "AD", "AO", "AI", "AQ", "AG", "AR", "AM",
-  "AW", "AU", "AT", "AZ", "BS", "BH", "BD", "BB", "BY", "BE", "BZ", "BJ",
-  "BM", "BT", "BO", "BQ", "BA", "BW", "BV", "BR", "IO", "BN", "BG", "BF",
-  "BI", "KH", "CM", "CA", "CV", "KY", "CF", "TD", "CL", "CN", "CX", "CC",
-  "CO", "KM", "CG", "CD", "CK", "CR", "CI", "HR", "CU", "CW", "CY", "CZ",
-  "DK", "DJ", "DM", "DO", "EC", "EG", "SV", "GQ", "ER", "EE", "SZ", "ET",
-  "FK", "FO", "FJ", "FI", "FR", "GF", "PF", "TF", "GA", "GM", "GE", "DE",
-  "GH", "GI", "GR", "GL", "GD", "GP", "GU", "GT", "GG", "GN", "GW", "GY",
-  "HT", "HM", "VA", "HN", "HK", "HU", "IS", "IN", "ID", "IR", "IQ", "IE",
-  "IM", "IL", "IT", "JM", "JP", "JE", "JO", "KZ", "KE", "KI", "KP", "KR",
-  "KW", "KG", "LA", "LV", "LB", "LS", "LR", "LY", "LI", "LT", "LU", "MO",
-  "MG", "MW", "MY", "MV", "ML", "MT", "MH", "MQ", "MR", "MU", "YT", "MX",
-  "FM", "MD", "MC", "MN", "ME", "MS", "MA", "MZ", "MM", "NA", "NR", "NP",
-  "NL", "NC", "NZ", "NI", "NE", "NG", "NU", "NF", "MK", "MP", "NO", "OM",
-  "PK", "PW", "PS", "PA", "PG", "PY", "PE", "PH", "PN", "PL", "PT", "PR",
-  "QA", "RE", "RO", "RU", "RW", "BL", "SH", "KN", "LC", "MF", "PM", "VC",
-  "WS", "SM", "ST", "SA", "SN", "RS", "SC", "SL", "SG", "SX", "SK", "SI",
-  "SB", "SO", "ZA", "GS", "SS", "ES", "LK", "SD", "SR", "SJ", "SE", "CH",
-  "SY", "TW", "TJ", "TZ", "TH", "TL", "TG", "TK", "TO", "TT", "TN", "TR",
-  "TM", "TC", "TV", "UG", "UA", "AE", "GB", "US", "UM", "UY", "UZ", "VU",
-  "VE", "VN", "VG", "VI", "WF", "EH", "YE", "ZM", "ZW",
-] as const;
-
-const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
-
-const countryOptions: CountryOption[] = countryCodes
-  .map((code) => ({
-    code,
-    flag: getFlagEmoji(code),
-    name: regionNames.of(code) ?? code,
-  }))
-  .sort((a, b) => {
-    if (a.code === "US") {
-      return -1;
-    }
-
-    if (b.code === "US") {
-      return 1;
-    }
-
-    return a.name.localeCompare(b.name);
-  });
 
 const maxUploadWidth = 1800;
 const maxUploadHeight = 2400;
@@ -78,6 +25,7 @@ export default function Home() {
   const [countryCode, setCountryCode] = useState("US");
   const [treatmentMethod, setTreatmentMethod] = useState(treatmentMethodOptions[0]);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
@@ -91,6 +39,18 @@ export default function Home() {
   );
   const selectedCountry =
     countryOptions.find((country) => country.code === countryCode) ?? countryOptions[0];
+
+  const handlePatientSelect = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setPatientName(patient.name);
+    const code = resolveCountryCode(patient.country);
+    if (code) setCountryCode(code);
+  };
+
+  const handlePatientClear = () => {
+    setSelectedPatient(null);
+    setPatientName("");
+  };
 
   const handleSelect = (slotId: string) => {
     inputRefs.current[slotId]?.click();
@@ -106,7 +66,7 @@ export default function Home() {
     void processImageFile(file).then((result) => {
       setSlots((current) =>
         current.map((slot) =>
-          slot.id === slotId ? { ...slot, dataUrl: result } : slot
+          slot.id === slotId ? { ...slot, dataUrl: result, file } : slot
         )
       );
     });
@@ -117,7 +77,7 @@ export default function Home() {
   const handleClear = (slotId: string) => {
     setSlots((current) =>
       current.map((slot) =>
-        slot.id === slotId ? { ...slot, dataUrl: null } : slot
+        slot.id === slotId ? { ...slot, dataUrl: null, file: null } : slot
       )
     );
   };
@@ -293,15 +253,14 @@ export default function Home() {
             <strong>{filledCount}/4</strong>
             <span>Images placed</span>
           </div>
-          <label className="input-stack">
-            <span>Patient Name</span>
-            <input
-              type="text"
-              placeholder="e.g. John Smith"
-              value={patientName}
-              onChange={(event) => setPatientName(event.target.value)}
+          <div className="input-stack">
+            <span>Patient</span>
+            <PatientSearch
+              selected={selectedPatient}
+              onSelect={handlePatientSelect}
+              onClear={handlePatientClear}
             />
-          </label>
+          </div>
           <label className="input-stack">
             <span>Patient Country</span>
             <div className="select-wrap">
@@ -426,14 +385,6 @@ export default function Home() {
       </section>
     </main>
   );
-}
-
-function getFlagEmoji(countryCode: string) {
-  return countryCode
-    .toUpperCase()
-    .split("")
-    .map((char) => String.fromCodePoint(127397 + char.charCodeAt(0)))
-    .join("");
 }
 
 async function processImageFile(file: File) {
