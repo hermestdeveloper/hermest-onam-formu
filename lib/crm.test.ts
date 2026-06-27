@@ -58,10 +58,19 @@ describe("uploadPatientFile", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toBe("https://crm.test/api/webhooks/patients/123/files");
     expect((init as RequestInit).method).toBe("POST");
+    expect((init as RequestInit).headers).toMatchObject({ "X-API-Key": "crm_secret" });
     const body = (init as RequestInit).body as FormData;
     expect(body).toBeInstanceOf(FormData);
     expect(body.get("description")).toBe("Front View");
     const sent = body.get("file");
     expect(sent).toBeInstanceOf(Blob);
+  });
+
+  it("throws CrmError on non-2xx upload", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 500 })));
+    const blob = new Blob(["x"], { type: "image/png" });
+    await expect(
+      uploadPatientFile("123", blob, "f.png", "Front View")
+    ).rejects.toMatchObject({ status: 500 });
   });
 });
