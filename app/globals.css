@@ -422,3 +422,83 @@ canvas {
     flex-direction: column;
   }
 }
+
+.patient-search {
+  position: relative;
+  display: grid;
+  gap: 8px;
+}
+
+.patient-search input {
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  outline: none;
+}
+
+.patient-search input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.patient-hint {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.patient-hint.error {
+  color: #ffd2d2;
+}
+
+.patient-results {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  display: grid;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.patient-results button {
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.patient-results button:hover {
+  background: rgba(0, 127, 163, 0.12);
+}
+
+.patient-name {
+  color: var(--navy-strong);
+  font-weight: 700;
+}
+
+.patient-meta {
+  color: #6f8f9a;
+  font-size: 0.86rem;
+}
+
+.patient-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
