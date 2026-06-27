@@ -6,7 +6,7 @@ import { buildUploadItems, uploadItems } from "@/lib/upload";
 import { consentSheetFileName } from "@/lib/filenames";
 import PatientSearch from "@/app/components/PatientSearch";
 import { countryOptions, resolveCountryCode } from "@/lib/country";
-import type { Patient, Slot, UploadItem, UploadStatus } from "@/lib/types";
+import type { CountryOption, Patient, Slot, UploadItem, UploadStatus } from "@/lib/types";
 
 const initialSlots: Slot[] = [
   { id: "front", label: "Front View", hint: "Frontal documentation", dataUrl: null, file: null },
@@ -24,7 +24,7 @@ const uploadQuality = 0.86;
 export default function Home() {
   const [slots, setSlots] = useState(initialSlots);
   const [patientName, setPatientName] = useState("");
-  const [countryCode, setCountryCode] = useState("US");
+  const [selectedCountry, setSelectedCountry] = useState<CountryOption | null>(null);
   const [treatmentMethod, setTreatmentMethod] = useState(treatmentMethodOptions[0]);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -44,19 +44,23 @@ export default function Home() {
     () => slots.filter((slot) => Boolean(slot.dataUrl)).length,
     [slots]
   );
-  const selectedCountry =
-    countryOptions.find((country) => country.code === countryCode) ?? countryOptions[0];
-
   const handlePatientSelect = (patient: Patient) => {
     setSelectedPatient(patient);
     setPatientName(patient.name);
     const code = resolveCountryCode(patient.country);
-    if (code) setCountryCode(code);
+    if (code) {
+      setSelectedCountry(countryOptions.find((c) => c.code === code) ?? null);
+    } else if (patient.country) {
+      setSelectedCountry({ code: "", flag: "", name: patient.country });
+    } else {
+      setSelectedCountry(null);
+    }
   };
 
   const handlePatientClear = () => {
     setSelectedPatient(null);
     setPatientName("");
+    setSelectedCountry(null);
   };
 
   const handleSelect = (slotId: string) => {
@@ -245,7 +249,7 @@ export default function Home() {
       const blob = await renderCollageBlob({
         slots,
         patientName,
-        country: selectedCountry,
+        country: selectedCountry ?? { code: "", flag: "", name: "-" },
         treatmentMethod,
         signatureDataUrl,
         date: now,
@@ -308,26 +312,19 @@ export default function Home() {
               onClear={handlePatientClear}
             />
           </div>
-          <label className="input-stack">
+          <div className="input-stack">
             <span>Patient Country</span>
-            <div className="select-wrap">
-              <div className="country-preview" aria-hidden="true">
-                <span className="country-flag">{selectedCountry.flag}</span>
+            {selectedCountry ? (
+              <div className="country-readonly">
+                {selectedCountry.flag ? (
+                  <span className="country-flag">{selectedCountry.flag}</span>
+                ) : null}
                 <span className="country-name">{selectedCountry.name}</span>
               </div>
-              <select
-                value={countryCode}
-                onChange={(event) => setCountryCode(event.target.value)}
-                className="stack-select"
-              >
-                {countryOptions.map((country) => (
-                  <option key={country.code} value={country.code}>
-                    {country.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </label>
+            ) : (
+              <div className="country-readonly muted">Patient seçilince otomatik gelir</div>
+            )}
+          </div>
           <div className="input-stack">
             <span>Treatment Method</span>
             <div className="method-grid" role="radiogroup" aria-label="Treatment Method">

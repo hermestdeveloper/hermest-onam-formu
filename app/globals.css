@@ -555,3 +555,19 @@ canvas {
   color: #ffd2d2;
   font-size: 0.9rem;
 }
+
+.country-readonly {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-weight: 600;
+}
+.country-readonly.muted {
+  color: var(--text-soft);
+  font-weight: 400;
+}
