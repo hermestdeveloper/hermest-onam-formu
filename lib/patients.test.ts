@@ -5,7 +5,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("searchPatientsClient", () => {
   it("hits the proxy and returns the data array", async () => {
-    const fetchMock = vi.fn(async () =>
+    const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
       new Response(JSON.stringify({ data: [{ id: 1, name: "Ahmet" }], total: 1, page: 1 }), {
         status: 200,
       })
@@ -18,7 +18,7 @@ describe("searchPatientsClient", () => {
   });
 
   it("throws on a non-ok response", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("x", { status: 500 })));
+    vi.stubGlobal("fetch", vi.fn(async (_url: string | URL, _init?: RequestInit) => new Response("x", { status: 500 })));
     await expect(searchPatientsClient("ahmet")).rejects.toThrow();
   });
 });

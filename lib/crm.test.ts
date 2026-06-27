@@ -25,7 +25,7 @@ describe("getCrmConfig", () => {
 
 describe("searchPatients", () => {
   it("calls the CRM with X-API-Key and query params", async () => {
-    const fetchMock = vi.fn(async () =>
+    const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) =>
       new Response(JSON.stringify({ data: [], total: 0, page: 1 }), { status: 200 })
     );
     vi.stubGlobal("fetch", fetchMock);
@@ -40,7 +40,7 @@ describe("searchPatients", () => {
   });
 
   it("throws CrmError on non-2xx", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 502 })));
+    vi.stubGlobal("fetch", vi.fn(async (_url: string | URL, _init?: RequestInit) => new Response("nope", { status: 502 })));
     await expect(searchPatients({ search: "x", page: 1, limit: 20 })).rejects.toMatchObject({
       status: 502,
     });
@@ -49,7 +49,7 @@ describe("searchPatients", () => {
 
 describe("uploadPatientFile", () => {
   it("POSTs multipart with file + description and the key", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    const fetchMock = vi.fn(async (_url: string | URL, _init?: RequestInit) => new Response(JSON.stringify({ ok: true }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
     const blob = new Blob(["x"], { type: "image/png" });
@@ -67,7 +67,7 @@ describe("uploadPatientFile", () => {
   });
 
   it("throws CrmError on non-2xx upload", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 500 })));
+    vi.stubGlobal("fetch", vi.fn(async (_url: string | URL, _init?: RequestInit) => new Response("nope", { status: 500 })));
     const blob = new Blob(["x"], { type: "image/png" });
     await expect(
       uploadPatientFile("123", blob, "f.png", "Front View")
