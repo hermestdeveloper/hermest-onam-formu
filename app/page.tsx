@@ -3,6 +3,7 @@
 import { ChangeEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { renderCollageBlob, loadImage } from "@/lib/collage";
 import { buildUploadItems, uploadItems } from "@/lib/upload";
+import { consentSheetFileName } from "@/lib/filenames";
 import PatientSearch from "@/app/components/PatientSearch";
 import { countryOptions, resolveCountryCode } from "@/lib/country";
 import type { Patient, Slot, UploadItem, UploadStatus } from "@/lib/types";
@@ -30,6 +31,8 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<Record<string, UploadStatus>>({});
   const [uploadItemsList, setUploadItemsList] = useState<UploadItem[]>([]);
+  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
@@ -214,11 +217,20 @@ export default function Home() {
 
   const runUploads = async (patientId: string | number, items: UploadItem[]) => {
     setIsUploading(true);
-    setUploadStatus(Object.fromEntries(items.map((i) => [i.key, "pending"])));
+    setUploadStatus((prev) => ({
+      ...prev,
+      ...Object.fromEntries(items.map((i) => [i.key, "pending" as UploadStatus])),
+    }));
+    setUploadErrors((prev) => {
+      const next = { ...prev };
+      for (const i of items) delete next[i.key];
+      return next;
+    });
     try {
-      await uploadItems(patientId, items, (key, status) =>
-        setUploadStatus((prev) => ({ ...prev, [key]: status }))
-      );
+      await uploadItems(patientId, items, (key, status, error) => {
+        setUploadStatus((prev) => ({ ...prev, [key]: status }));
+        if (error) setUploadErrors((prev) => ({ ...prev, [key]: error }));
+      });
     } finally {
       setIsUploading(false);
     }
@@ -226,6 +238,7 @@ export default function Home() {
 
   const handleDownload = async () => {
     if (!selectedPatient) return;
+    setDownloadError(null);
     setIsExporting(true);
     try {
       const now = new Date();
@@ -238,18 +251,22 @@ export default function Home() {
         date: now,
       });
 
-      // Always download locally first.
+      // Always download locally first, independent of upload outcome.
       const link = document.createElement("a");
-      const stamp = now.toISOString().slice(0, 10);
-      link.download = `hermest-visual-consent-sheet-${stamp}.png`;
+      link.download = consentSheetFileName(now, treatmentMethod);
       link.href = URL.createObjectURL(blob);
       link.click();
       setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 
-      // Then upload sheet + filled photos to the CRM.
+      // Local copy is done — leave the "Preparing" phase before uploading.
+      setIsExporting(false);
+
       const items = buildUploadItems(blob, slots, treatmentMethod, now);
       setUploadItemsList(items);
       await runUploads(selectedPatient.id, items);
+    } catch (err) {
+      console.error("[consent] download/upload failed:", err);
+      setDownloadError("Föy oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.");
     } finally {
       setIsExporting(false);
     }
@@ -355,6 +372,7 @@ export default function Home() {
           >
             {isExporting ? "Preparing..." : isUploading ? "Uploading..." : "Download Consent Sheet"}
           </button>
+          {downloadError ? <p className="download-error">{downloadError}</p> : null}
 
           {uploadItemsList.length > 0 ? (
             <div className="upload-panel">
@@ -367,10 +385,23 @@ export default function Home() {
                     <li key={item.key} className={`upload-row ${status}`}>
                       <span className="upload-icon">{icon}</span>
                       <span className="upload-name">{item.filename}</span>
+                      {status === "error" && uploadErrors[item.key] ? (
+                        <span className="upload-error">{uploadErrors[item.key]}</span>
+                      ) : null}
                     </li>
                   );
                 })}
               </ul>
+              {(() => {
+                const total = uploadItemsList.length;
+                const uploaded = uploadItemsList.filter((i) => uploadStatus[i.key] === "success").length;
+                const failed = uploadItemsList.filter((i) => uploadStatus[i.key] === "error").length;
+                return !isUploading && uploaded + failed > 0 ? (
+                  <p className="upload-summary">
+                    {total} dosyadan {uploaded} yüklendi{failed > 0 ? `, ${failed} hata` : ""}
+                  </p>
+                ) : null;
+              })()}
               {uploadItemsList.some((i) => uploadStatus[i.key] === "error") && !isUploading ? (
                 <button type="button" className="secondary-button" onClick={retryFailed}>
                   Başarısızları tekrar dene

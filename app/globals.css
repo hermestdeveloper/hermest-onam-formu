@@ -538,3 +538,20 @@ canvas {
 .upload-row.success { color: #c9f3d8; }
 .upload-row.error { color: #ffd2d2; }
 .upload-icon { width: 1.1rem; text-align: center; }
+
+.upload-error {
+  color: #ffd2d2;
+  font-size: 0.82rem;
+}
+
+.upload-summary {
+  margin: 2px 0 0;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.download-error {
+  margin: 8px 0 0;
+  color: #ffd2d2;
+  font-size: 0.9rem;
+}

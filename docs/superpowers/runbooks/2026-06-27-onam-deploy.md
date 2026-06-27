@@ -8,11 +8,14 @@ Target: Hetzner host (root, SSH key auth). nginx + certbot already installed (se
     cd /opt/hermest-onam
 
 ## 2. Create the server-side .env (never committed)
-    cat > /opt/hermest-onam/.env <<'EOF'
-    CRM_BASE_URL=https://<real-crm-host>
-    CRM_API_KEY=crm_xxx
-    EOF
-    chmod 600 /opt/hermest-onam/.env
+
+```bash
+cat > /opt/hermest-onam/.env <<'EOF'
+CRM_BASE_URL=https://<real-crm-host>
+CRM_API_KEY=crm_xxx
+EOF
+chmod 600 /opt/hermest-onam/.env
+```
 
 ## 3. Build + run the container
     cd /opt/hermest-onam

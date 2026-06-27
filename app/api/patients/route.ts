@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const result = await searchPatients({ search, page, limit });
     return NextResponse.json(result);
   } catch (err) {
+    console.error("[/api/patients] arama hatası:", err);
     const status = err instanceof CrmError ? err.status : 500;
     return NextResponse.json({ error: "Arama başarısız" }, { status });
   }

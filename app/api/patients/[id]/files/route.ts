@@ -32,6 +32,7 @@ export async function POST(
     const result = await uploadPatientFile(id, file, filename, description);
     return NextResponse.json({ ok: true, result });
   } catch (err) {
+    console.error("[/api/patients/:id/files] yükleme hatası:", err);
     const status = err instanceof CrmError ? err.status : 500;
     return NextResponse.json({ error: "Yükleme başarısız" }, { status });
   }
