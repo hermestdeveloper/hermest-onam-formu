@@ -19,12 +19,20 @@ proxy route'u). Akış:
 2. **4 açıdan fotoğraf** yükle (Front / Top / Right / Left) + **imza** çiz +
    **tedavi yöntemi** seç (DHI / Sapphire FUE / Unique FUE) + **Drive alt klasörü**
    seç (varsayılan **Dosyalar**).
-3. **"Download Consent Sheet"** → markalı **PNG** föyü üretir:
-   - **lokale indirir** (her durumda), ve
-   - **CRM'e yükler**: föy + dolu ham fotoğraflar, seçili hastanın Drive klasöründeki
-     **seçilen alt klasöre** (`subFolder`).
-     Dosya adları tedavi-yöntemi önekli: `sapphire_fue_front_view.jpg`,
-     föy: `hermest-visual-consent-sheet-sapphire_fue-<tarih>.png`.
+3. **İki buton** (75/25):
+   - **"Send & Download"** → markalı **PNG** föyü üretir, **lokale indirir** ve
+     **CRM'e yükler** (föy + dolu ham fotoğraflar, hastanın Drive klasöründeki
+     seçilen alt klasöre). Hasta seçimi zorunlu.
+   - **"Download"** → yalnızca lokale indirir, **CRM'e hiç dokunmaz**. Hasta
+     seçimi gerekmez (taslak/çıktı almak için).
+
+**Dosya adı şeması** (`lib/filenames.ts`): `<tedavi>_<hasta>_<görünüm>_<tarih_saat>`
+- fotoğraf: `sapphire_fue_ahmet_yilmaz_front_view_2026-08-05_1425.jpg`
+- föy: `hermest-visual-consent-sheet-sapphire_fue-ahmet_yilmaz-2026-08-05_1425.png`
+
+Zaman damgası **yerel saat** (dosyaya bakan klinik saatini görsün) ve bir dışa
+aktarımdaki tüm dosyalar **aynı damgayı** taşır. Türkçe harfler karşılıklarına
+çevrilir (`Şükrü Öztürk` → `sukru_ozturk`); boş parça (hasta seçilmemişse) atlanır.
 
 **Güvenlik:** CRM API anahtarı (`X-API-Key`) **asla tarayıcıya gitmez**.
 Tarayıcı → bu uygulamanın sunucu route'ları (`/api/patients`,

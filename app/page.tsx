@@ -253,8 +253,9 @@ export default function Home() {
     }
   };
 
-  const handleDownload = async () => {
-    if (!selectedPatient) return;
+  // sendToCrm=false → yalnizca lokal indirme; CRM'e hic dokunmaz, hasta secimi de gerekmez.
+  const handleDownload = async (sendToCrm: boolean) => {
+    if (sendToCrm && !selectedPatient) return;
     setDownloadError(null);
     setIsExporting(true);
     try {
@@ -270,7 +271,7 @@ export default function Home() {
 
       // Always download locally first, independent of upload outcome.
       const link = document.createElement("a");
-      link.download = consentSheetFileName(now, treatmentMethod);
+      link.download = consentSheetFileName(now, treatmentMethod, patientName);
       link.href = URL.createObjectURL(blob);
       link.click();
       setTimeout(() => URL.revokeObjectURL(link.href), 1000);
@@ -278,7 +279,9 @@ export default function Home() {
       // Local copy is done — leave the "Preparing" phase before uploading.
       setIsExporting(false);
 
-      const items = buildUploadItems(blob, slots, treatmentMethod, now);
+      if (!sendToCrm || !selectedPatient) return;
+
+      const items = buildUploadItems(blob, slots, treatmentMethod, now, patientName);
       setUploadItemsList(items);
       await runUploads(selectedPatient.id, items, subFolder);
     } catch (err) {
@@ -394,13 +397,23 @@ export default function Home() {
             </div>
           </div>
           <p className="stat-note">Prepared for clinical review and patient approval</p>
-          <button
-            className="download-button"
-            onClick={handleDownload}
-            disabled={filledCount === 0 || !selectedPatient || isExporting || isUploading}
-          >
-            {isExporting ? "Preparing..." : isUploading ? "Uploading..." : "Download Consent Sheet"}
-          </button>
+          <div className="download-actions">
+            <button
+              className="download-button"
+              onClick={() => handleDownload(true)}
+              disabled={filledCount === 0 || !selectedPatient || isExporting || isUploading}
+            >
+              {isExporting ? "Preparing..." : isUploading ? "Uploading..." : "Send & Download"}
+            </button>
+            <button
+              className="download-button secondary"
+              onClick={() => handleDownload(false)}
+              disabled={filledCount === 0 || isExporting || isUploading}
+              title="Yalnızca bu cihaza indirir, CRM'e göndermez"
+            >
+              Download
+            </button>
+          </div>
           {downloadError ? <p className="download-error">{downloadError}</p> : null}
 
           {uploadItemsList.length > 0 ? (

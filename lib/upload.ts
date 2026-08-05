@@ -6,12 +6,13 @@ export function buildUploadItems(
   sheetBlob: Blob,
   slots: Slot[],
   method: string,
-  date: Date
+  date: Date,
+  patientName: string
 ): UploadItem[] {
   const items: UploadItem[] = [
     {
       key: "sheet",
-      filename: consentSheetFileName(date, method),
+      filename: consentSheetFileName(date, method, patientName),
       description: "Visual Consent Sheet",
       blob: sheetBlob,
     },
@@ -21,7 +22,7 @@ export function buildUploadItems(
     if (slot.file) {
       items.push({
         key: slot.id,
-        filename: slotFileName(slot.id, slot.file.type, method),
+        filename: slotFileName(slot.id, slot.file.type, method, patientName, date),
         description: slot.label,
         blob: slot.file,
       });

@@ -18,12 +18,30 @@ describe("buildUploadItems", () => {
   it("puts the sheet first and only includes filled slots", () => {
     const sheet = new Blob(["s"], { type: "image/png" });
     const slots = [slot("front", true), slot("top", false), slot("right", true)];
-    const items = buildUploadItems(sheet, slots, "SAPPHIRE FUE", new Date("2026-06-27T00:00:00Z"));
+    const date = new Date(2026, 5, 27, 14, 5);
+    const items = buildUploadItems(sheet, slots, "SAPPHIRE FUE", date, "Ahmet Yılmaz");
 
     expect(items.map((i) => i.key)).toEqual(["sheet", "front", "right"]);
-    expect(items[0].filename).toBe("hermest-visual-consent-sheet-sapphire_fue-2026-06-27.png");
-    expect(items[1].filename).toBe("sapphire_fue_front_view.jpg");
+    expect(items[0].filename).toBe(
+      "hermest-visual-consent-sheet-sapphire_fue-ahmet_yilmaz-2026-06-27_1405.png"
+    );
+    expect(items[1].filename).toBe(
+      "sapphire_fue_ahmet_yilmaz_front_view_2026-06-27_1405.jpg"
+    );
     expect(items[1].description).toBe("front");
+  });
+
+  it("gives every file in one export the same timestamp", () => {
+    const slots = [slot("front", true), slot("left", true)];
+    const items = buildUploadItems(
+      new Blob(["s"], { type: "image/png" }),
+      slots,
+      "DHI METHOD",
+      new Date(2026, 5, 27, 14, 5),
+      "Ahmet"
+    );
+    const stamps = items.map((i) => i.filename.match(/2026-06-27_\d{4}/)?.[0]);
+    expect(new Set(stamps).size).toBe(1);
   });
 });
 

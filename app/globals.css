@@ -280,6 +280,24 @@ canvas {
   font-weight: 800;
 }
 
+/* 75/25: birincil eylem (gonder + indir) genis, yalnizca-indir dar. */
+.download-actions {
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  gap: 10px;
+}
+
+.download-button.secondary {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.download-button.secondary:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
 .download-button:disabled {
   opacity: 0.56;
   cursor: not-allowed;
