@@ -52,6 +52,14 @@ export function slotFileName(
   return `${parts.join("_")}.${extensionForMime(mime)}`;
 }
 
+// CRM, multipart'taki dosya adini yok sayip Drive adini
+// `{description} - {hasta adi}.{uzanti}` olarak kendisi kuruyor (2026-08-05'te
+// gercek yuklemeyle dogrulandi). Yani Drive'da gorunen ada tek etkimiz description.
+// Hasta adini biz eklemiyoruz — CRM zaten sona ekliyor, iki kez yazilmasin.
+export function driveDescription(method: string, label: string, date: Date): string {
+  return [method.trim(), label.trim(), timeStamp(date)].filter(Boolean).join(" - ");
+}
+
 export function consentSheetFileName(
   date: Date,
   method: string,

@@ -6,6 +6,7 @@ import {
   extensionForMime,
   slotFileName,
   consentSheetFileName,
+  driveDescription,
 } from "@/lib/filenames";
 
 // Yerel saat kullanildigi icin sabit bir yerel tarih kuruluyor (UTC parse edilirse
@@ -62,6 +63,22 @@ describe("slotFileName", () => {
     expect(slotFileName("top", "image/jpeg", "UNIQUE FUE", "", DATE)).toBe(
       "unique_fue_top_view_2026-06-27_1405.jpg"
     );
+  });
+});
+
+describe("driveDescription", () => {
+  // CRM Drive adini `{description} - {hasta}.png` diye kuruyor, bizim filename'i yok sayiyor.
+  it("carries method, label and timestamp — the only part we control", () => {
+    expect(driveDescription("DHI METHOD", "Front View", DATE)).toBe(
+      "DHI METHOD - Front View - 2026-06-27_1405"
+    );
+    expect(driveDescription("SAPPHIRE FUE", "Visual Consent Sheet", DATE)).toBe(
+      "SAPPHIRE FUE - Visual Consent Sheet - 2026-06-27_1405"
+    );
+  });
+
+  it("does not repeat the patient name — the CRM appends it", () => {
+    expect(driveDescription("DHI METHOD", "Front View", DATE)).not.toMatch(/soner|hasta/i);
   });
 });
 

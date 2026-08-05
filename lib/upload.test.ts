@@ -28,7 +28,11 @@ describe("buildUploadItems", () => {
     expect(items[1].filename).toBe(
       "sapphire_fue_ahmet_yilmaz_front_view_2026-06-27_1405.jpg"
     );
-    expect(items[1].description).toBe("front");
+    // description Drive'daki adi belirliyor (CRM sonuna " - <hasta>" ekliyor).
+    expect(items[0].description).toBe(
+      "SAPPHIRE FUE - Visual Consent Sheet - 2026-06-27_1405"
+    );
+    expect(items[1].description).toBe("SAPPHIRE FUE - front - 2026-06-27_1405");
   });
 
   it("gives every file in one export the same timestamp", () => {

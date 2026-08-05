@@ -1,5 +1,5 @@
 import type { Slot, UploadItem, UploadResult, UploadStatus } from "@/lib/types";
-import { slotFileName, consentSheetFileName } from "@/lib/filenames";
+import { slotFileName, consentSheetFileName, driveDescription } from "@/lib/filenames";
 import { DEFAULT_SUB_FOLDER } from "@/lib/folders";
 
 export function buildUploadItems(
@@ -13,7 +13,7 @@ export function buildUploadItems(
     {
       key: "sheet",
       filename: consentSheetFileName(date, method, patientName),
-      description: "Visual Consent Sheet",
+      description: driveDescription(method, "Visual Consent Sheet", date),
       blob: sheetBlob,
     },
   ];
@@ -23,7 +23,7 @@ export function buildUploadItems(
       items.push({
         key: slot.id,
         filename: slotFileName(slot.id, slot.file.type, method, patientName, date),
-        description: slot.label,
+        description: driveDescription(method, slot.label, date),
         blob: slot.file,
       });
     }
