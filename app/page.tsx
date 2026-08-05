@@ -316,6 +316,16 @@ export default function Home() {
         </div>
 
         <div className="hero-stats">
+          <button
+            type="button"
+            className="logout-button"
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
+              window.location.href = "/login";
+            }}
+          >
+            Çıkış
+          </button>
           <div className="stat-box">
             <strong>{filledCount}/4</strong>
             <span>Images placed</span>
