@@ -1,5 +1,6 @@
 import type { Slot, UploadItem, UploadResult, UploadStatus } from "@/lib/types";
 import { slotFileName, consentSheetFileName } from "@/lib/filenames";
+import { DEFAULT_SUB_FOLDER } from "@/lib/folders";
 
 export function buildUploadItems(
   sheetBlob: Blob,
@@ -30,11 +31,16 @@ export function buildUploadItems(
   return items;
 }
 
-async function postItem(patientId: string | number, item: UploadItem): Promise<void> {
+async function postItem(
+  patientId: string | number,
+  item: UploadItem,
+  subFolder: string
+): Promise<void> {
   const form = new FormData();
   form.append("file", item.blob, item.filename);
   form.append("filename", item.filename);
   form.append("description", item.description);
+  form.append("subFolder", subFolder);
 
   const res = await fetch(`/api/patients/${encodeURIComponent(String(patientId))}/files`, {
     method: "POST",
@@ -54,6 +60,7 @@ export async function uploadItems(
   patientId: string | number,
   items: UploadItem[],
   onUpdate: (key: string, status: UploadStatus, error?: string) => void,
+  subFolder: string = DEFAULT_SUB_FOLDER,
   concurrency = 2
 ): Promise<UploadResult[]> {
   const results: UploadResult[] = [];
@@ -64,7 +71,7 @@ export async function uploadItems(
       const current = items[index++];
       onUpdate(current.key, "uploading");
       try {
-        await postItem(patientId, current);
+        await postItem(patientId, current, subFolder);
         onUpdate(current.key, "success");
         results.push({ key: current.key, status: "success" });
       } catch (e) {

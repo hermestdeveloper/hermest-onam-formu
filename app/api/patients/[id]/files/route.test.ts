@@ -35,8 +35,63 @@ describe("POST /api/patients/[id]/files", () => {
       "123",
       expect.any(Blob),
       "sapphire_fue_front_view.png",
-      "Front View"
+      "Front View",
+      "Dosyalar"
     );
+  });
+
+  it("forwards a template sub folder", async () => {
+    (uploadPatientFile as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true });
+    const fd = new FormData();
+    fd.append("file", new Blob(["x"], { type: "image/png" }), "f.png");
+    fd.append("subFolder", "000 öncesi");
+
+    const res = await POST(fileReq(fd), { params: Promise.resolve({ id: "123" }) });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ subFolder: "000 öncesi" });
+    expect(uploadPatientFile).toHaveBeenCalledWith(
+      "123",
+      expect.any(Blob),
+      "f.png",
+      "",
+      "000 öncesi"
+    );
+  });
+
+  it("rejects a sub folder outside the template without calling the CRM", async () => {
+    const fd = new FormData();
+    fd.append("file", new Blob(["x"], { type: "image/png" }), "f.png");
+    fd.append("subFolder", "Dosyalarr");
+
+    const res = await POST(fileReq(fd), { params: Promise.resolve({ id: "123" }) });
+    expect(res.status).toBe(400);
+    expect(uploadPatientFile).not.toHaveBeenCalled();
+  });
+
+  it("passes the CRM message through on a 4xx so the user sees it", async () => {
+    const { CrmError } = await import("@/lib/crm");
+    (uploadPatientFile as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new CrmError("Bu kayda Drive klasörü bağlı değil.", 400)
+    );
+    const fd = new FormData();
+    fd.append("file", new Blob(["x"], { type: "image/png" }), "f.png");
+
+    const res = await POST(fileReq(fd), { params: Promise.resolve({ id: "123" }) });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Bu kayda Drive klasörü bağlı değil.");
+  });
+
+  it("hides internal detail on a 5xx", async () => {
+    const { CrmError } = await import("@/lib/crm");
+    (uploadPatientFile as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new CrmError("internal boom", 500)
+    );
+    const fd = new FormData();
+    fd.append("file", new Blob(["x"], { type: "image/png" }), "f.png");
+
+    const res = await POST(fileReq(fd), { params: Promise.resolve({ id: "123" }) });
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("Yükleme başarısız");
   });
 
   it("returns 400 when no file is present", async () => {

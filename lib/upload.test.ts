@@ -41,6 +41,36 @@ describe("uploadItems", () => {
     expect(updates).toContain("front:success");
   });
 
+  it("sends the chosen sub folder with every item", async () => {
+    const folders: (FormDataEntryValue | null)[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url, init) => {
+        folders.push(((init as RequestInit).body as FormData).get("subFolder"));
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      })
+    );
+    const items = [
+      { key: "sheet", filename: "s.png", description: "", blob: new Blob(["s"]) },
+      { key: "front", filename: "f.jpg", description: "Front", blob: new Blob(["f"]) },
+    ];
+    await uploadItems("123", items, () => {}, "3.ay", 1);
+    expect(folders).toEqual(["3.ay", "3.ay"]);
+  });
+
+  it("defaults to Dosyalar when no folder is given", async () => {
+    let sent: FormDataEntryValue | null = null;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url, init) => {
+        sent = ((init as RequestInit).body as FormData).get("subFolder");
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      })
+    );
+    await uploadItems("123", [{ key: "sheet", filename: "s.png", description: "", blob: new Blob(["s"]) }], () => {});
+    expect(sent).toBe("Dosyalar");
+  });
+
   it("marks a failed item as error without throwing", async () => {
     vi.stubGlobal(
       "fetch",
@@ -56,7 +86,7 @@ describe("uploadItems", () => {
       { key: "good", filename: "good.jpg", description: "", blob: new Blob(["g"]) },
       { key: "bad", filename: "bad.jpg", description: "", blob: new Blob(["b"]) },
     ];
-    const results = await uploadItems("123", items, () => {}, 1);
+    const results = await uploadItems("123", items, () => {}, "Dosyalar", 1);
     const byKey = Object.fromEntries(results.map((r) => [r.key, r.status]));
     expect(byKey.good).toBe("success");
     expect(byKey.bad).toBe("error");

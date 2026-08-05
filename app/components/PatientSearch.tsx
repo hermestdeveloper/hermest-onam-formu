@@ -49,6 +49,7 @@ export default function PatientSearch({ selected, onSelect, onClear }: Props) {
       <div className="patient-selected">
         <div>
           <strong>{selected.name}</strong>
+          <span className="patient-id">#{selected.id}</span>
           {selected.phone ? <span> · {selected.phone}</span> : null}
         </div>
         <button type="button" className="secondary-button" onClick={onClear}>
@@ -82,7 +83,10 @@ export default function PatientSearch({ selected, onSelect, onClear }: Props) {
                   setStatus("idle");
                 }}
               >
-                <span className="patient-name">{patient.name}</span>
+                <span className="patient-name">
+                  {patient.name}
+                  <span className="patient-id">#{patient.id}</span>
+                </span>
                 <span className="patient-meta">
                   {[patient.phone, patient.email].filter(Boolean).join(" · ")}
                 </span>

@@ -6,6 +6,7 @@ import { buildUploadItems, uploadItems } from "@/lib/upload";
 import { consentSheetFileName } from "@/lib/filenames";
 import PatientSearch from "@/app/components/PatientSearch";
 import { countryOptions, resolveCountryCode } from "@/lib/country";
+import { SUB_FOLDER_OPTIONS, DEFAULT_SUB_FOLDER } from "@/lib/folders";
 import type { CountryOption, Patient, Slot, UploadItem, UploadStatus } from "@/lib/types";
 
 const initialSlots: Slot[] = [
@@ -28,6 +29,8 @@ export default function Home() {
   const [treatmentMethod, setTreatmentMethod] = useState(treatmentMethodOptions[0]);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [subFolder, setSubFolder] = useState<string>(DEFAULT_SUB_FOLDER);
+  const [uploadedFolder, setUploadedFolder] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<Record<string, UploadStatus>>({});
   const [uploadItemsList, setUploadItemsList] = useState<UploadItem[]>([]);
@@ -219,8 +222,13 @@ export default function Home() {
     setSignatureDataUrl(null);
   };
 
-  const runUploads = async (patientId: string | number, items: UploadItem[]) => {
+  const runUploads = async (
+    patientId: string | number,
+    items: UploadItem[],
+    folder: string
+  ) => {
     setIsUploading(true);
+    setUploadedFolder(folder);
     setUploadStatus((prev) => ({
       ...prev,
       ...Object.fromEntries(items.map((i) => [i.key, "pending" as UploadStatus])),
@@ -231,10 +239,15 @@ export default function Home() {
       return next;
     });
     try {
-      await uploadItems(patientId, items, (key, status, error) => {
-        setUploadStatus((prev) => ({ ...prev, [key]: status }));
-        if (error) setUploadErrors((prev) => ({ ...prev, [key]: error }));
-      });
+      await uploadItems(
+        patientId,
+        items,
+        (key, status, error) => {
+          setUploadStatus((prev) => ({ ...prev, [key]: status }));
+          if (error) setUploadErrors((prev) => ({ ...prev, [key]: error }));
+        },
+        folder
+      );
     } finally {
       setIsUploading(false);
     }
@@ -267,7 +280,7 @@ export default function Home() {
 
       const items = buildUploadItems(blob, slots, treatmentMethod, now);
       setUploadItemsList(items);
-      await runUploads(selectedPatient.id, items);
+      await runUploads(selectedPatient.id, items, subFolder);
     } catch (err) {
       console.error("[consent] download/upload failed:", err);
       setDownloadError("Föy oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.");
@@ -280,7 +293,7 @@ export default function Home() {
     if (!selectedPatient) return;
     const failed = uploadItemsList.filter((i) => uploadStatus[i.key] === "error");
     if (failed.length === 0) return;
-    await runUploads(selectedPatient.id, failed);
+    await runUploads(selectedPatient.id, failed, subFolder);
   };
 
   return (
@@ -324,6 +337,25 @@ export default function Home() {
             ) : (
               <div className="country-readonly muted">Patient seçilince otomatik gelir</div>
             )}
+          </div>
+          <div className="input-stack">
+            <span>Drive Folder</span>
+            <select
+              className="folder-select"
+              value={subFolder}
+              onChange={(event) => setSubFolder(event.target.value)}
+              disabled={isUploading}
+              aria-label="Drive Folder"
+            >
+              {SUB_FOLDER_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+            <small className="folder-hint">
+              Dosyalar danışanın Drive klasöründeki bu alt klasöre yüklenir.
+            </small>
           </div>
           <div className="input-stack">
             <span>Treatment Method</span>
@@ -396,6 +428,7 @@ export default function Home() {
                 return !isUploading && uploaded + failed > 0 ? (
                   <p className="upload-summary">
                     {total} dosyadan {uploaded} yüklendi{failed > 0 ? `, ${failed} hata` : ""}
+                    {uploadedFolder ? ` → ${uploadedFolder}` : ""}
                   </p>
                 ) : null;
               })()}

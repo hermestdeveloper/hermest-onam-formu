@@ -4,6 +4,8 @@ export type Patient = {
   phone?: string;
   email?: string;
   country?: string;
+  board?: string;
+  segment?: string;
 };
 
 export type PatientSearchResponse = {

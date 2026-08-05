@@ -7,6 +7,7 @@ vi.mock("@/lib/crm", () => ({
     constructor(m: string, s: number) { super(m); this.status = s; }
   },
   searchPatients: vi.fn(),
+  getBoardFilter: () => "Danışanlar",
 }));
 
 import { GET } from "@/app/api/patients/route";
@@ -35,6 +36,18 @@ describe("GET /api/patients", () => {
     const res = await GET(req("?search=ahmet"));
     expect(res.status).toBe(200);
     expect((await res.json()).data[0].name).toBe("Ahmet");
+  });
+
+  it("applies the server-side board filter and ignores a client-sent one", async () => {
+    (searchPatients as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      total: 0,
+      page: 1,
+    });
+    await GET(req("?search=ahmet&board=Takipler"));
+    expect(searchPatients).toHaveBeenCalledWith(
+      expect.objectContaining({ board: "Danışanlar" })
+    );
   });
 
   it("maps CrmError status to the response", async () => {

@@ -125,7 +125,9 @@ canvas {
   gap: 8px;
 }
 
-.input-stack span {
+/* Yalnizca alan etiketleri — dogrudan cocuk. Torun span'lere (arama sonuclari,
+   ulke adi) uygulanirsa metin soluk ve buyuk harf oluyor, liste okunmuyordu. */
+.input-stack > span {
   color: var(--text-soft);
   font-size: 0.88rem;
   font-weight: 500;
@@ -462,7 +464,10 @@ canvas {
   max-height: 260px;
   overflow-y: auto;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.96);
+  /* Tam opak zemin — yari saydam beyaz uzerinde koyu metin okunmuyordu. */
+  background: #ffffff;
+  border: 1px solid rgba(0, 62, 81, 0.12);
+  box-shadow: 0 12px 28px rgba(0, 27, 36, 0.22);
 }
 
 .patient-results button {
@@ -477,17 +482,42 @@ canvas {
   cursor: pointer;
 }
 
-.patient-results button:hover {
-  background: rgba(0, 127, 163, 0.12);
+.patient-results button:hover,
+.patient-results button:focus-visible {
+  background: rgba(0, 127, 163, 0.14);
+  outline: none;
 }
 
-.patient-name {
-  color: var(--navy-strong);
+/* Etiket stillerinin bu span'lere sizmamasi icin acikca sifirlaniyor. */
+.patient-results span {
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.patient-results .patient-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: #003e51;
+  font-size: 0.98rem;
   font-weight: 700;
 }
 
+.patient-id {
+  color: #0f6b86;
+  font-weight: 600;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.patient-selected .patient-id {
+  margin-left: 6px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
 .patient-meta {
-  color: #6f8f9a;
+  color: #47616b;
   font-size: 0.86rem;
 }
 
@@ -570,4 +600,38 @@ canvas {
 .country-readonly.muted {
   color: var(--text-soft);
   font-weight: 400;
+}
+
+.folder-select {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-weight: 600;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+/* Acilan liste isletim sistemi tarafindan ciziliyor; koyu zemin devralinmasin diye
+   secenekler acikca beyaz zemin + koyu metin olarak veriliyor. */
+.folder-select option {
+  background: #ffffff;
+  color: #003e51;
+}
+
+.folder-select:focus-visible {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.folder-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.folder-hint {
+  color: var(--text-soft);
+  font-size: 0.82rem;
 }

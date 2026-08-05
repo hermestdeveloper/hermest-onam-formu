@@ -1,6 +1,6 @@
 # Hermest Onam Formu — Handoff
 
-Son güncelleme: 2026-06-27
+Son güncelleme: 2026-08-05
 
 Bu doküman, projeyi devralacak/sonra devam edecek geliştirici için: ne yapıldı,
 canlı durum, nasıl test edilir, nasıl deploy edilir ve **kalan/bekleyen işler**.
@@ -13,13 +13,16 @@ Saç ekimi öncesi **görsel onam (rıza) föyü** üreten tek sayfalık uygulam
 (**Next.js 16 + React 19 + TypeScript**, tamamen client-side UI + iki sunucu
 proxy route'u). Akış:
 
-1. **CRM'den hasta ara** (isim/telefon/e-posta) → seçilen hastanın **adı + ülkesi**
-   otomatik gelir (ülke artık elle seçilmiyor, salt-okunur).
+1. **CRM'den hasta ara** (isim/telefon/e-posta) → sonuçlar **`#id` ile** listelenir,
+   seçilen hastanın **adı + ülkesi** otomatik gelir (ülke elle seçilmiyor, salt-okunur).
+   Arama **yalnızca tek bir CRM panosunu** kapsar (varsayılan **Danışanlar**, `boardId=13`).
 2. **4 açıdan fotoğraf** yükle (Front / Top / Right / Left) + **imza** çiz +
-   **tedavi yöntemi** seç (DHI / Sapphire FUE / Unique FUE).
+   **tedavi yöntemi** seç (DHI / Sapphire FUE / Unique FUE) + **Drive alt klasörü**
+   seç (varsayılan **Dosyalar**).
 3. **"Download Consent Sheet"** → markalı **PNG** föyü üretir:
    - **lokale indirir** (her durumda), ve
-   - **CRM'e yükler**: föy + dolu ham fotoğraflar, seçili hastanın klasörüne.
+   - **CRM'e yükler**: föy + dolu ham fotoğraflar, seçili hastanın Drive klasöründeki
+     **seçilen alt klasöre** (`subFolder`).
      Dosya adları tedavi-yöntemi önekli: `sapphire_fue_front_view.jpg`,
      föy: `hermest-visual-consent-sheet-sapphire_fue-<tarih>.png`.
 
@@ -39,8 +42,9 @@ Tarayıcı → bu uygulamanın sunucu route'ları (`/api/patients`,
 - **Kod transferi:** şu an `rsync` ile (git değil). GitHub remote:
   `hermestdeveloper/hermest-onam-formu`.
 
-> ⚠️ **Şu an arama/yükleme ÇALIŞMIYOR** çünkü CRM endpoint'leri henüz canlı
-> değil (bkz. §5 Kalan İşler). Föy oluşturma + lokale indirme çalışıyor.
+> ✅ **CRM uçları 2026-08-04'te prod'a çıktı** (CRM release `20260804-210304-d0decb2`,
+> issue [#84](https://github.com/CloserOneAI/HermestCRM/issues/84)). Arama doğrulandı;
+> Drive'a yüklemenin uçtan uca teyidi (gerçek föyle) hâlâ bekliyor — bkz. §5.
 
 ---
 
@@ -50,7 +54,7 @@ Tarayıcı → bu uygulamanın sunucu route'ları (`/api/patients`,
 ```bash
 npm install
 npm run dev        # http://localhost:3000
-npm test           # 27 birim testi (Vitest)
+npm test           # 41 birim testi (Vitest)
 npm run build      # production build (standalone)
 npx tsc --noEmit   # tip kontrolü (temiz olmalı)
 ```
@@ -64,16 +68,17 @@ curl -I https://onam.hermestclinic.net/            # 200
 curl "https://onam.hermestclinic.net/api/patients?search=a"
 # Beklenen: {"data":[],"total":0,"page":1}
 
-# Gerçek arama → CRM uçları YOKKEN 500 döner (beklenen, creds/endpoint eksik):
-curl "https://onam.hermestclinic.net/api/patients?search=ahmet"
-# Şimdilik: {"error":"Arama başarısız"}  (CRM hazır olunca {data,total,page})
+# Gerçek arama → {data,total,page}; her kayıtta board "Danışanlar" olmalı:
+curl "https://onam.hermestclinic.net/api/patients?search=ahmet" | head -c 400
 ```
 
-### Manuel uçtan-uca (CRM hazır olunca)
-1. Hasta ara → seç → ad + ülke doluyor mu.
-2. 1–4 fotoğraf + imza → **Download**.
-3. Lokal PNG indi mi; **CRM hasta klasöründe** föy + isimli fotoğraflar
-   (`sapphire_fue_front_view.jpg` vb.) oluştu mu.
+### Manuel uçtan-uca
+1. Hasta ara → listede `#id` görünüyor + okunuyor mu; sonuçların hepsi
+   **Danışanlar** panosundan mı (yanıtta `board` alanı) → seç → ad + ülke doluyor mu.
+2. 1–4 fotoğraf + imza → **Drive Folder** seç → **Download**.
+3. Lokal PNG indi mi; **hastanın Drive klasöründeki seçilen alt klasörde** föy +
+   isimli fotoğraflar (`sapphire_fue_front_view.jpg` vb.) oluştu mu. Aynı yüklemeyi
+   ikinci kez yap → alt klasör **çoğalmamalı** (CRM #107).
 4. Upload hatasını simüle et (yanlış key) → satır içi ✗ + özet + "Başarısızları
    tekrar dene" çalışıyor mu; lokal indirme yine de oluyor mu.
 
@@ -106,29 +111,36 @@ nginx vhost + certbot kurulumu zaten yapıldı. Detaylı runbook:
 
 ## 5. Kalan / Bekleyen İşler
 
-### 🔴 BLOCKER — CRM webhook endpoint'leri (CRM ekibinde)
-CRM'de iki uç **henüz tanımlı/deploy değil** (test edildi, 404 dönüyorlar):
-- `GET  /api/webhooks/patients?search=&page=&limit=` → `{ data, total, page }`
-- `POST /api/webhooks/patients/:id/files` (multipart: `file` + opsiyonel `description`)
-
-CRM dev'den gerekenler:
-1. Bu iki endpoint'i ekleyip **deploy** etmeleri.
-2. **Gerçek API key** (`X-API-Key` için; şu an `crm_xxx` placeholder).
-3. Hasta yanıtına **`country`** alanı (ISO `TR` veya ad `Turkey` — ikisi de
-   resolver'da destekleniyor).
-
-> Not: CRM bir NestJS app, global prefix `/api`. `/webhooks/patients`
-> (api'siz) 200 döner ama o **frontend SPA**'in index.html'i — gerçek API değil.
-
-### 🟢 CRM hazır olunca yapılacak (bizde, ~1 dk)
+### 🔴 Deploy bekliyor — CRM issue #84 uyarlaması (2026-08-05)
+Kod hazır ve lokalde doğrulandı, **prod'a çıkmadı**. Sunucuya rsync + rebuild
+gerekiyor (§4) ve `.env`'e `CRM_BOARD` eklenmeli:
 ```bash
-# Sunucuda /opt/hermest-onam/.env :
-CRM_BASE_URL=https://crm.hermestclinic.net
-CRM_API_KEY=<gerçek_key>
-# sonra:
-docker compose up -d --force-recreate
+# /opt/hermest-onam/.env
+CRM_BOARD=Danışanlar
 ```
-Ardından §3 manuel uçtan-uca testi prod'da çalıştır.
+
+### 🔴 Uçtan uca Drive teyidi (bizde)
+CRM ekibi issue #84'ü kapatırken tek açık maddeyi bize bıraktı: gerçek bir onam
+formu yükleyip dosyanın Drive'da **danışan klasörü → seçilen alt klasöre** düştüğünü
+görmek. Lokalde/testlerde `subFolder` gönderimi doğrulandı, canlı Drive denenmedi.
+
+### ⚠️ Drive klasörü bağlı olmayan hastalar
+CRM #36 ile **otomatik klasör açma kaldırıldı** (#107 ile hastaya bağlı, çoklamayan
+sürüm geri geldi). Klasörü olmayan bir kayda yükleme denenirse CRM 400 + şu mesajı
+döner: *"Bu kayda Drive klasörü bağlı değil. Önce CRM üzerinden bir Drive klasörü
+bağlayın."* Bu mesaj artık kullanıcıya satır içi gösteriliyor
+(`app/api/patients/[id]/files/route.ts`, 4xx'te CRM metni aynen geçer).
+
+### 🟢 Yapıldı — issue #84 (2026-08-05)
+- **Pano filtresi:** `/api/patients` CRM'e `board` parametresi gönderiyor. Değer
+  **sunucudan** (`CRM_BOARD`) geliyor, istemci değiştiremiyor. Varsayılan `Danışanlar`;
+  env boş bırakılırsa filtre uygulanmaz.
+- **Arama listesinde `#id`** + okunabilirlik: liste zemini tam opak, metin koyu.
+  (Kök neden: `.input-stack span` etiket stili liste içindeki span'lere de sızıp
+  metni soluk + büyük harf yapıyordu; kural `> span`'e daraltıldı.)
+- **Drive alt klasörü seçimi:** ekranda "Drive Folder" seçici, varsayılan `Dosyalar`.
+  Şablon dışı bir ad sunucuda 400 ile reddediliyor (`lib/folders.ts`), CRM'e hiç
+  gitmiyor — Drive'da çöp klasör açılmasın diye.
 
 ### 🟡 Teyit / küçük işler
 - **Dosya boyutu:** nginx `client_max_body_size` şu an **20m** (`deploy/nginx/
@@ -157,6 +169,7 @@ Ardından §3 manuel uçtan-uca testi prod'da çalıştır.
 | `lib/collage.ts` | Canvas çizim/export → PNG `Blob` |
 | `lib/country.ts` | **Sabit/donmuş** ülke adları + flag + `resolveCountryCode` |
 | `lib/filenames.ts` | Dosya adı kurucu (tedavi-yöntemi önekli) |
+| `lib/folders.ts` | CRM Drive alt klasör şablonu + varsayılan (`Dosyalar`) + doğrulama |
 | `lib/types.ts` | Ortak tipler |
 
 **Tasarım & plan:**
@@ -177,7 +190,8 @@ aynı render edilir. `lib/country.test.ts` bunu pinliyor.
 | Değişken | Açıklama |
 |---|---|
 | `CRM_BASE_URL` | CRM kök adresi (örn. `https://crm.hermestclinic.net`) — server-only |
-| `CRM_API_KEY` | `X-API-Key` değeri — server-only, asla `NEXT_PUBLIC_` değil |
+| `CRM_API_KEY` | `X-API-Key` değeri — server-only, asla `NEXT_PUBLIC_` değil. Gereken kapsamlar: `customers:read` + `customers:write` |
+| `CRM_BOARD` | Aramanın sınırlandığı CRM panosu. Varsayılan `Danışanlar`. Boş string = filtre yok |
 
 Sunucuda `/opt/hermest-onam/.env`. Repoda yalnızca `.env.example` var; gerçek
 `.env` commit'lenmez.

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchPatients, CrmError } from "@/lib/crm";
+import { searchPatients, getBoardFilter, CrmError } from "@/lib/crm";
 
 export const runtime = "nodejs";
 
@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
   const limit = Number(sp.get("limit") ?? "20") || 20;
 
   try {
-    const result = await searchPatients({ search, page, limit });
+    // Pano istemciden degil sunucudan belirleniyor — tarayici filtreyi degistiremesin.
+    const result = await searchPatients({ search, page, limit, board: getBoardFilter() });
     return NextResponse.json(result);
   } catch (err) {
     console.error("[/api/patients] arama hatası:", err);
