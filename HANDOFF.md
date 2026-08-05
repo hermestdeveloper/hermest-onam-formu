@@ -56,7 +56,7 @@ npm install
 npm run dev        # http://localhost:3000
 npm test           # 41 birim testi (Vitest)
 npm run build      # production build (standalone)
-npx tsc --noEmit   # tip kontrolü (temiz olmalı)
+npm run typecheck  # tsc --noEmit (temiz olmalı)
 ```
 
 ### Production smoke test
@@ -111,14 +111,6 @@ nginx vhost + certbot kurulumu zaten yapıldı. Detaylı runbook:
 
 ## 5. Kalan / Bekleyen İşler
 
-### 🔴 Deploy bekliyor — CRM issue #84 uyarlaması (2026-08-05)
-Kod hazır ve lokalde doğrulandı, **prod'a çıkmadı**. Sunucuya rsync + rebuild
-gerekiyor (§4) ve `.env`'e `CRM_BOARD` eklenmeli:
-```bash
-# /opt/hermest-onam/.env
-CRM_BOARD=Danışanlar
-```
-
 ### 🔴 Uçtan uca Drive teyidi (bizde)
 CRM ekibi issue #84'ü kapatırken tek açık maddeyi bize bıraktı: gerçek bir onam
 formu yükleyip dosyanın Drive'da **danışan klasörü → seçilen alt klasöre** düştüğünü
@@ -131,7 +123,11 @@ döner: *"Bu kayda Drive klasörü bağlı değil. Önce CRM üzerinden bir Driv
 bağlayın."* Bu mesaj artık kullanıcıya satır içi gösteriliyor
 (`app/api/patients/[id]/files/route.ts`, 4xx'te CRM metni aynen geçer).
 
-### 🟢 Yapıldı — issue #84 (2026-08-05)
+### 🟢 Yapıldı — issue #84, **prod'a çıkıldı 2026-08-05**
+Deploy doğrulandı: `/api/patients?search=ahmet` → 207 sonuç, hepsi `board: "Danışanlar"`
+(filtresiz 29.320'ye karşı); istemciden `?board=Takipler` gönderilse bile yok sayılıyor;
+şablon dışı `subFolder` CRM'e gitmeden 400 dönüyor.
+
 - **Pano filtresi:** `/api/patients` CRM'e `board` parametresi gönderiyor. Değer
   **sunucudan** (`CRM_BOARD`) geliyor, istemci değiştiremiyor. Varsayılan `Danışanlar`;
   env boş bırakılırsa filtre uygulanmaz.
@@ -148,7 +144,10 @@ bağlayın."* Bu mesaj artık kullanıcıya satır içi gösteriliyor
   fotoğraflar 20MB'ı aşacaksa artır.
 - **Tek dosya/istek varsayımı:** Uygulama dosyaları **istek başına tek dosya**
   yolluyor. CRM ucu çoklu kabul ediyorsa da çalışır; teyit edilebilir.
-- **favicon.ico 404** (kozmetik) — istenirse `app/icon.png` eklenebilir.
+- **ESLint kurulu değil.** `lint` script'i `next lint` çağırıyordu; o komut Next 16'da
+  kaldırıldı ve projede hiç eslint bağımlılığı/config'i yok — script kaldırıldı, yerine
+  `npm run typecheck` kondu. Gerçek lint istenirse `eslint` + `eslint-config-next`
+  kurulmalı (ayrı iş; yeni uyarı dalgası çıkarabilir).
 - **HEIC:** iPhone HEIC orijinalleri `.jpg` uzantısıyla yükleniyor
   (`lib/filenames.ts:extensionForMime`); CRM HEIC kabul etmiyorsa dönüştürme
   gerekebilir.
@@ -191,7 +190,7 @@ aynı render edilir. `lib/country.test.ts` bunu pinliyor.
 |---|---|
 | `CRM_BASE_URL` | CRM kök adresi (örn. `https://crm.hermestclinic.net`) — server-only |
 | `CRM_API_KEY` | `X-API-Key` değeri — server-only, asla `NEXT_PUBLIC_` değil. Gereken kapsamlar: `customers:read` + `customers:write` |
-| `CRM_BOARD` | Aramanın sınırlandığı CRM panosu. Varsayılan `Danışanlar`. Boş string = filtre yok |
+| `CRM_BOARD` | Aramanın sınırlandığı CRM panosu. **Opsiyonel** — tanımlı değilse kod `Danışanlar` kullanır (sunucudaki `.env`'de yok, gerekmiyor). Boş string = filtre yok |
 
 Sunucuda `/opt/hermest-onam/.env`. Repoda yalnızca `.env.example` var; gerçek
 `.env` commit'lenmez.
