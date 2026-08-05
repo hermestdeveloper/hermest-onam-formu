@@ -34,6 +34,17 @@ Zaman damgası **yerel saat** (dosyaya bakan klinik saatini görsün) ve bir dı
 aktarımdaki tüm dosyalar **aynı damgayı** taşır. Türkçe harfler karşılıklarına
 çevrilir (`Şükrü Öztürk` → `sukru_ozturk`); boş parça (hasta seçilmemişse) atlanır.
 
+> ⚠️ **Drive'daki ad bu değildir.** CRM, multipart'taki `filename` alanını **yok
+> sayar** ve Drive adını kendisi kurar: `{description} - {hasta adı}.{uzantı}`.
+> 2026-08-05'te gerçek yüklemeyle doğrulandı (gönderilen `BIZIM_GONDERDIGIMIZ_AD.png`
+> → dönen `fileName: "SONDA_ACIKLAMA_XYZ - soner aratma.png"`). Bu yüzden Drive'da
+> görünen ada tek etkimiz **`description`**; `lib/filenames.ts:driveDescription`
+> oraya `{tedavi} - {etiket} - {tarih_saat}` yazar, sonuç:
+> `DHI METHOD - Front View - 2026-08-05_1251 - soner aratma.png`.
+> Hasta adı bilerek eklenmez — CRM zaten sona ekliyor, yoksa iki kez yazılırdı.
+> Yükleme yanıtındaki `data.fileName` Drive'daki gerçek adı döndürür; adla ilgili
+> bir şey değiştirileceğinde önce oraya bakılmalı.
+
 **Güvenlik:** CRM API anahtarı (`X-API-Key`) **asla tarayıcıya gitmez**.
 Tarayıcı → bu uygulamanın sunucu route'ları (`/api/patients`,
 `/api/patients/:id/files`) → CRM. Anahtar yalnızca sunucu env'inde.
