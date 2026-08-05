@@ -49,6 +49,24 @@ aktarımdaki tüm dosyalar **aynı damgayı** taşır. Türkçe harfler karşıl
 Tarayıcı → bu uygulamanın sunucu route'ları (`/api/patients`,
 `/api/patients/:id/files`) → CRM. Anahtar yalnızca sunucu env'inde.
 
+**Giriş (2026-08-05):** Uygulama tek ortak parolayla korunuyor. `middleware.ts`
+`/login` ve auth uçları dışındaki **her yolu** kapatır — yalnızca sayfayı korumak
+yetmezdi, `/api/patients` doğrudan çağrıldığında CRM'deki ~29 bin hastanın adı,
+telefonu ve e-postası dönüyordu. Oturum imzalı çerez (HMAC-SHA256, httpOnly +
+sameSite lax, 30 gün); veritabanı yok. `APP_PASSWORD` / `AUTH_SECRET` tanımlı
+değilse uygulama **hiçbir şey servis etmez** (503) — env unutulursa site sessizce
+açık kalmasın diye bilerek böyle. Giriş IP başına 15 dakikada 10 hatalı denemeyle
+sınırlı. Parola karşılaştırması ve imza karşılaştırması sabit zamanlı.
+
+Parola değiştirme (sunucuda, ~1 dk):
+```bash
+ssh root@<SUNUCU_IP>
+cd /opt/hermest-onam
+sed -i 's/^APP_PASSWORD=.*/APP_PASSWORD=yeni-parola/' .env
+docker compose up -d --force-recreate     # rebuild gerekmez
+```
+`AUTH_SECRET` değiştirilirse herkesin oturumu düşer (bazen istenen şey budur).
+
 ---
 
 ## 2. Canlı durum
@@ -73,15 +91,21 @@ Tarayıcı → bu uygulamanın sunucu route'ları (`/api/patients`,
 ```bash
 npm install
 npm run dev        # http://localhost:3000
-npm test           # 41 birim testi (Vitest)
+npm test           # 65 birim testi (Vitest)
 npm run build      # production build (standalone)
 npm run typecheck  # tsc --noEmit (temiz olmalı)
 ```
 
 ### Production smoke test
 ```bash
-# Sayfa ayakta mı:
-curl -I https://onam.hermestclinic.net/            # 200
+# Giriş koruması ayakta mı (oturumsuz):
+curl -s -o /dev/null -w '%{http_code}\n' https://onam.hermestclinic.net/          # 307 → /login
+curl -s https://onam.hermestclinic.net/api/patients?search=ahmet                  # {"error":"Oturum gerekli"} 401
+
+# Oturum açıp devam et:
+curl -c p.txt -X POST -H 'Content-Type: application/json' \
+     -d '{"password":"<parola>"}' https://onam.hermestclinic.net/api/auth/login   # {"ok":true}
+curl -b p.txt -o /dev/null -w '%{http_code}\n' https://onam.hermestclinic.net/    # 200
 
 # Kısa arama → CRM'e gitmeden boş döner (short-circuit, <2 karakter):
 curl "https://onam.hermestclinic.net/api/patients?search=a"
@@ -210,6 +234,8 @@ aynı render edilir. `lib/country.test.ts` bunu pinliyor.
 | `CRM_BASE_URL` | CRM kök adresi (örn. `https://crm.hermestclinic.net`) — server-only |
 | `CRM_API_KEY` | `X-API-Key` değeri — server-only, asla `NEXT_PUBLIC_` değil. Gereken kapsamlar: `customers:read` + `customers:write` |
 | `CRM_BOARD` | Aramanın sınırlandığı CRM panosu. **Opsiyonel** — tanımlı değilse kod `Danışanlar` kullanır (sunucudaki `.env`'de yok, gerekmiyor). Boş string = filtre yok |
+| `APP_PASSWORD` | **Zorunlu.** Klinik ekibinin paylaştığı tek giriş parolası. Yoksa uygulama 503 döner |
+| `AUTH_SECRET` | **Zorunlu.** Oturum çerezini imzalar (`openssl rand -base64 48`). Değişirse tüm oturumlar düşer |
 
 Sunucuda `/opt/hermest-onam/.env`. Repoda yalnızca `.env.example` var; gerçek
 `.env` commit'lenmez.
