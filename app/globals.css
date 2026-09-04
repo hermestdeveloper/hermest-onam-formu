@@ -118,6 +118,7 @@ canvas {
   align-content: start;
   gap: 16px;
   width: 100%;
+  min-width: 0;
 }
 
 .input-stack {
@@ -553,6 +554,9 @@ canvas {
 
 .upload-panel {
   display: grid;
+  /* Grid/flex cocuklarinin varsayilan min-width degeri "auto"; uzun bir dosya
+     adi bu yuzden kutuyu disari tasirip tum sayfayi yatay kaydiriyordu. */
+  min-width: 0;
   gap: 10px;
   margin-top: 4px;
   padding: 14px 16px;
@@ -562,6 +566,7 @@ canvas {
 }
 
 .upload-panel ul {
+  min-width: 0;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -572,12 +577,19 @@ canvas {
 .upload-row {
   display: flex;
   align-items: center;
+  /* Hata metni sigmazsa alt satira insin, satiri genisletmesin. */
+  flex-wrap: wrap;
+  min-width: 0;
   gap: 10px;
   color: var(--text-soft);
   font-size: 0.9rem;
 }
 
+/* Ellipsis yalnizca kucultulebilen bir flex ogesinde calisir: min-width: 0
+   olmadan oge icerigi kadar genis kalir ve overflow: hidden hicbir sey yapmaz. */
 .upload-row .upload-name {
+  flex: 1 1 0;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -585,9 +597,13 @@ canvas {
 
 .upload-row.success { color: #c9f3d8; }
 .upload-row.error { color: #ffd2d2; }
-.upload-icon { width: 1.1rem; text-align: center; }
+.upload-icon { flex: 0 0 auto; width: 1.1rem; text-align: center; }
 
 .upload-error {
+  /* Kendi satirina insin; ikonun altina degil, dosya adiyla ayni hizaya. */
+  flex: 1 0 100%;
+  padding-left: calc(1.1rem + 10px);
+  overflow-wrap: anywhere;
   color: #ffd2d2;
   font-size: 0.82rem;
 }
@@ -715,4 +731,33 @@ canvas {
 
 .logout-button:hover {
   background: rgba(255, 255, 255, 0.16);
+}
+
+/* Yeni yayin seridi — yalnizca form doluyken cikar (bos formda sekme
+   kendiliginden yenilenir), o yuzden dikkat cekmeli ama yolu kapatmamali. */
+.version-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.version-banner button {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--navy-strong);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
 }

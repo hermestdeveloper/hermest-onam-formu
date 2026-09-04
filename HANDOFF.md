@@ -1,6 +1,6 @@
 # Hermest Onam Formu — Handoff
 
-Son güncelleme: 2026-08-05
+Son güncelleme: 2026-09-04
 
 Bu doküman, projeyi devralacak/sonra devam edecek geliştirici için: ne yapıldı,
 canlı durum, nasıl test edilir, nasıl deploy edilir ve **kalan/bekleyen işler**.
@@ -78,6 +78,18 @@ docker compose up -d --force-recreate     # rebuild gerekmez
 - **Konum:** `/opt/hermest-onam` (sunucuda).
 - **Kod transferi:** şu an `rsync` ile (git değil). GitHub remote:
   `hermestdeveloper/hermest-onam-formu`.
+- **Cloudflare (2026-09-04):** alan adı artık **proxy arkasında** (turuncu bulut);
+  DNS Cloudflare IP'lerine çözülüyor, origin adresi Obsidian `hermest` notunda. SSL modu **Full
+  (strict)** olmalı — Flexible'da origin HTTPS'e zorladığı için sonsuz yönlendirme
+  döngüsü olur. Let's Encrypt yenilemesi proxy arkasında da çalışıyor
+  (`certbot renew --dry-run` proxy açıkken doğrulandı).
+  nginx gerçek ziyaretçi IP'sini `CF-Connecting-IP`'den okuyor
+  (`/etc/nginx/snippets/cloudflare-realip.conf`, `deploy/nginx/*.conf` içinde de var).
+  Bu olmadan giriş deneme limiti tüm kullanıcılar için ortak sayaca dönerdi.
+  Aynı düzenleme `n8n.hermestclinic.net` vhost'una da uygulandı.
+  Cloudflare Free planı origin'den 100 sn içinde yanıt beklemiyor, uzun istekler
+  524 alır — onam için sorun değil, n8n'de uzun workflow'lar etkilenebilir
+  (bilinçli olarak öyle bırakıldı).
 
 > ✅ **CRM uçları 2026-08-04'te prod'a çıktı** (CRM release `20260804-210304-d0decb2`,
 > issue [#84](https://github.com/CloserOneAI/HermestCRM/issues/84)). Arama doğrulandı;
@@ -213,10 +225,47 @@ Deploy doğrulandı: `/api/patients?search=ahmet` → 207 sonuç, hepsi `board: 
 | `lib/filenames.ts` | Dosya adı kurucu (tedavi-yöntemi önekli) |
 | `lib/folders.ts` | CRM Drive alt klasör şablonu + varsayılan (`Dosyalar`) + doğrulama |
 | `lib/types.ts` | Ortak tipler |
+| `lib/buildId.ts` | `.next/BUILD_ID`'yi okur (yayın kimliği) |
+| `app/api/version/route.ts` | Sunucudaki güncel yayın kimliğini döner |
+| `app/components/VersionWatcher.tsx` | Açık sekmeyi eski sürümde bırakmaz |
 
 **Tasarım & plan:**
 `docs/superpowers/specs/2026-06-27-crm-integration-design.md`,
 `docs/superpowers/plans/2026-06-27-crm-integration.md`.
+
+### Sürüm tazeliği (2026-09-04)
+
+Kullanıcılar cache'teki eski HTML yüzünden eski sürümde kalıyordu. İki parça:
+
+1. **Cache başlıkları** (`next.config.ts`): HTML için `no-cache, must-revalidate`.
+   `/_next/static` bilerek dışarıda — oradaki adlar içerik hash'i taşır, `immutable`
+   kalmaları doğru. Yeni bir sekme artık her zaman güncel HTML alır.
+2. **Açık sekmeler** (`VersionWatcher`): dakikada bir ve sekmeye geri dönüldüğünde
+   `/api/version` sorulur. Sunucunun kimliği farklıysa; form **boşsa** sekme
+   kendiliğinden yenilenir, **doluysa** şerit gösterilir (fotoğraf ve imza
+   silinmesin diye — kullanıcının kararı).
+
+> ⚠️ Kimlik `next.config.ts` içinde ÜRETİLMEZ. Config bir derlemede birden fazla
+> kez değerlendiriliyor; `Date.now()` gibi bir değer her seferinde farklı çıkıyor,
+> istemciye giden kimlik sunucunun bildirdiğiyle hiç tutmuyor ve boş formdaki her
+> sekme **sonsuz yenileme döngüsüne** giriyordu. Tek kaynak `.next/BUILD_ID`
+> dosyası: layout onu `<meta name="x-build-id">` olarak HTML'e basar, `/api/version`
+> aynı dosyayı okur. Dosya okunamazsa `"unknown"` döner ve istemci karşılaştırmayı
+> atlar (`lib/buildId.test.ts` bunu pinliyor).
+
+### Uzun dosya adı / yatay taşma (2026-09-04)
+
+Yükleme listesindeki uzun dosya adı tüm sayfayı sağa kaydırıyordu. Sebep:
+`.upload-name` ellipsis için `overflow: hidden` taşıyor ama flex öğesinin
+varsayılan `min-width` değeri `auto` olduğu için içeriğinden küçülemiyordu.
+Çözüm zincir boyunca `min-width: 0` (`.hero-stats` → `.upload-panel` → `ul` →
+`.upload-row` → `.upload-name`) ve `.upload-name`'e `flex: 1 1 0`. Hata metni
+`flex: 1 0 100%` ile alt satıra iniyor. Ad kırpıldığı için `title` ile tam hâli
+gösteriliyor.
+
+Ölçüldü (1200px kapta, 120 karakterlik dosya adı): eski CSS'te sayfa 270px sağa
+kayıyordu, yeni CSS'te kayma yok ve panel kolon genişliğinde kalıyor. 390px'lik
+dar kapta da taşan öğe yok.
 
 ### Önemli teknik not (regresyon olmasın)
 `lib/country.ts` içindeki ülke adları **bilerek statik literal** (runtime
@@ -232,10 +281,37 @@ aynı render edilir. `lib/country.test.ts` bunu pinliyor.
 | Değişken | Açıklama |
 |---|---|
 | `CRM_BASE_URL` | CRM kök adresi (örn. `https://crm.hermestclinic.net`) — server-only |
-| `CRM_API_KEY` | `X-API-Key` değeri — server-only, asla `NEXT_PUBLIC_` değil. Gereken kapsamlar: `customers:read` + `customers:write` |
+| `CRM_API_KEY` | `X-API-Key` değeri — server-only, asla `NEXT_PUBLIC_` değil. Gereken kapsamlar: **yalnızca** `customers:read` + `customers:write` |
 | `CRM_BOARD` | Aramanın sınırlandığı CRM panosu. **Opsiyonel** — tanımlı değilse kod `Danışanlar` kullanır (sunucudaki `.env`'de yok, gerekmiyor). Boş string = filtre yok |
 | `APP_PASSWORD` | **Zorunlu.** Klinik ekibinin paylaştığı tek giriş parolası. Yoksa uygulama 503 döner |
 | `AUTH_SECRET` | **Zorunlu.** Oturum çerezini imzalar (`openssl rand -base64 48`). Değişirse tüm oturumlar düşer |
 
 Sunucuda `/opt/hermest-onam/.env`. Repoda yalnızca `.env.example` var; gerçek
 `.env` commit'lenmez.
+
+### CRM anahtarı yenilerken (2026-09-04'te yaşandı)
+
+CRM'de **var olan bir API anahtarının kapsamları değiştirilemez.** `api-keys`
+modülünde yalnızca oluştur / listele / sil uçları var; PATCH yok. Kapsam yanlışsa
+panelden **yeni anahtar üretmek** gerekir, eskisini düzenlemek işe yaramaz.
+
+Onam formu CRM'de sadece iki uca gidiyor, dolayısıyla anahtara başka kapsam
+verilmemeli:
+
+| Uç | Kapsam |
+|---|---|
+| `GET /api/webhooks/patients` | `customers:read` |
+| `POST /api/webhooks/patients/:id/files` | `customers:write` |
+
+> Kapsam listesi **boş** bırakılırsa CRM geçiş toleransına düşüp anahtarı tam
+> yetkili sayar (`hasRequiredScope` → `null`). Yeni anahtarda iki kutu mutlaka
+> işaretlenmeli.
+
+Prod'a koymadan önce doğrula (403 = kapsam eksik, 401 = anahtar yok):
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -H "X-API-Key: <yeni>" \
+  'https://crm.hermestclinic.net/api/webhooks/patients?search=zzz&page=1&limit=1'   # 200 bekleniyor
+# customers:write, dosya yüklemeden guard'la sınanır (403 = kapsam yok, 400 = kapsam var):
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "X-API-Key: <yeni>" \
+  'https://crm.hermestclinic.net/api/webhooks/patients/00000000-0000-0000-0000-000000000000/files'
+```

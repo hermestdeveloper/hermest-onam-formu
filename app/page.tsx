@@ -5,6 +5,7 @@ import { renderCollageBlob, loadImage } from "@/lib/collage";
 import { buildUploadItems, uploadItems } from "@/lib/upload";
 import { consentSheetFileName } from "@/lib/filenames";
 import PatientSearch from "@/app/components/PatientSearch";
+import VersionWatcher from "@/app/components/VersionWatcher";
 import { countryOptions, resolveCountryCode } from "@/lib/country";
 import { SUB_FOLDER_OPTIONS, DEFAULT_SUB_FOLDER } from "@/lib/folders";
 import type { CountryOption, Patient, Slot, UploadItem, UploadStatus } from "@/lib/types";
@@ -299,8 +300,18 @@ export default function Home() {
     await runUploads(selectedPatient.id, failed, subFolder);
   };
 
+  // Yeni yayin geldiginde sekmenin kendiliginden yenilenip yenilenemeyecegini
+  // belirler: bunlardan biri doluysa yenileme kullanicinin emegini silerdi.
+  const hasUnsavedWork =
+    filledCount > 0 ||
+    Boolean(signatureDataUrl) ||
+    Boolean(selectedPatient) ||
+    isExporting ||
+    isUploading;
+
   return (
     <main className="page-shell">
+      <VersionWatcher hasUnsavedWork={hasUnsavedWork} />
       <section className="hero-card">
         <div className="hero-copy">
           <div className="hero-heading">
@@ -436,7 +447,7 @@ export default function Home() {
                   return (
                     <li key={item.key} className={`upload-row ${status}`}>
                       <span className="upload-icon">{icon}</span>
-                      <span className="upload-name">{item.filename}</span>
+                      <span className="upload-name" title={item.filename}>{item.filename}</span>
                       {status === "error" && uploadErrors[item.key] ? (
                         <span className="upload-error">{uploadErrors[item.key]}</span>
                       ) : null}

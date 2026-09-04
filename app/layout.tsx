@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { readBuildId } from "@/lib/buildId";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,8 +25,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Sayfayla birlikte giden kimlik. Tarayicidaki kod bunu okuyup /api/version
+  // ile karsilastirir; eski (cache'ten gelen) HTML eski kimligi tasidigi icin
+  // fark aninda goruluyor.
+  const buildId = readBuildId();
+
   return (
     <html lang="en">
+      <head>
+        <meta name="x-build-id" content={buildId} />
+      </head>
       <body>{children}</body>
     </html>
   );
