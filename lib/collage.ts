@@ -373,16 +373,25 @@ export function loadImage(src: string) {
   });
 }
 
+// Foy fotograf agirlikli; PNG kayipsiz oldugu icin dosyayi gereksiz sisiriyordu.
+// Zemin bastan asagi doldruldugu icin saydamlik kaybi diye bir sorun da yok.
+const sheetMimeType = "image/jpeg";
+const sheetQuality = 0.92;
+
 export function canvasToBlob(canvas: HTMLCanvasElement) {
   return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error("Could not create image blob"));
-        return;
-      }
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("Could not create image blob"));
+          return;
+        }
 
-      resolve(blob);
-    }, "image/png");
+        resolve(blob);
+      },
+      sheetMimeType,
+      sheetQuality
+    );
   });
 }
 

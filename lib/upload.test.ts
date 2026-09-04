@@ -23,7 +23,7 @@ describe("buildUploadItems", () => {
 
     expect(items.map((i) => i.key)).toEqual(["sheet", "front", "right"]);
     expect(items[0].filename).toBe(
-      "hermest-visual-consent-sheet-sapphire_fue-ahmet_yilmaz-2026-06-27_1405.png"
+      "hermest-visual-consent-sheet-sapphire_fue-ahmet_yilmaz-2026-06-27_1405.jpg"
     );
     expect(items[1].filename).toBe(
       "sapphire_fue_ahmet_yilmaz_front_view_2026-06-27_1405.jpg"

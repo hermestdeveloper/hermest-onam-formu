@@ -20,7 +20,7 @@ proxy route'u). Akış:
    **tedavi yöntemi** seç (DHI / Sapphire FUE / Unique FUE) + **Drive alt klasörü**
    seç (varsayılan **Dosyalar**).
 3. **İki buton** (75/25):
-   - **"Send & Download"** → markalı **PNG** föyü üretir, **lokale indirir** ve
+   - **"Send & Download"** → markalı **JPEG** föyü üretir, **lokale indirir** ve
      **CRM'e yükler** (föy + dolu ham fotoğraflar, hastanın Drive klasöründeki
      seçilen alt klasöre). Hasta seçimi zorunlu.
    - **"Download"** → yalnızca lokale indirir, **CRM'e hiç dokunmaz**. Hasta
@@ -28,7 +28,7 @@ proxy route'u). Akış:
 
 **Dosya adı şeması** (`lib/filenames.ts`): `<tedavi>_<hasta>_<görünüm>_<tarih_saat>`
 - fotoğraf: `sapphire_fue_ahmet_yilmaz_front_view_2026-08-05_1425.jpg`
-- föy: `hermest-visual-consent-sheet-sapphire_fue-ahmet_yilmaz-2026-08-05_1425.png`
+- föy: `hermest-visual-consent-sheet-sapphire_fue-ahmet_yilmaz-2026-08-05_1425.jpg`
 
 Zaman damgası **yerel saat** (dosyaya bakan klinik saatini görsün) ve bir dışa
 aktarımdaki tüm dosyalar **aynı damgayı** taşır. Türkçe harfler karşılıklarına
@@ -131,7 +131,7 @@ curl "https://onam.hermestclinic.net/api/patients?search=ahmet" | head -c 400
 1. Hasta ara → listede `#id` görünüyor + okunuyor mu; sonuçların hepsi
    **Danışanlar** panosundan mı (yanıtta `board` alanı) → seç → ad + ülke doluyor mu.
 2. 1–4 fotoğraf + imza → **Drive Folder** seç → **Download**.
-3. Lokal PNG indi mi; **hastanın Drive klasöründeki seçilen alt klasörde** föy +
+3. Lokal föy (JPEG) indi mi; **hastanın Drive klasöründeki seçilen alt klasörde** föy +
    isimli fotoğraflar (`sapphire_fue_front_view.jpg` vb.) oluştu mu. Aynı yüklemeyi
    ikinci kez yap → alt klasör **çoğalmamalı** (CRM #107).
 4. Upload hatasını simüle et (yanlış key) → satır içi ✗ + özet + "Başarısızları
@@ -220,7 +220,7 @@ Deploy doğrulandı: `/api/patients?search=ahmet` → 207 sonuç, hepsi `board: 
 | `lib/crm.ts` | CRM server client (search + uploadFile), env + hata maplemesi |
 | `lib/patients.ts` | Client arama helper'ı (`/api/patients` çağırır) |
 | `lib/upload.ts` | `buildUploadItems` + eşzamanlı `uploadItems` (durum/retry) |
-| `lib/collage.ts` | Canvas çizim/export → PNG `Blob` |
+| `lib/collage.ts` | Canvas çizim/export → JPEG `Blob` (q=0.92) |
 | `lib/country.ts` | **Sabit/donmuş** ülke adları + flag + `resolveCountryCode` |
 | `lib/filenames.ts` | Dosya adı kurucu (tedavi-yöntemi önekli) |
 | `lib/folders.ts` | CRM Drive alt klasör şablonu + varsayılan (`Dosyalar`) + doğrulama |
@@ -232,6 +232,41 @@ Deploy doğrulandı: `/api/patients?search=ahmet` → 207 sonuç, hepsi `board: 
 **Tasarım & plan:**
 `docs/superpowers/specs/2026-06-27-crm-integration-design.md`,
 `docs/superpowers/plans/2026-06-27-crm-integration.md`.
+
+### Föy neden JPEG (2026-09-04)
+
+Klinik "diğer fotoğraflar gitti, onam föyü gitmedi" diye bildirdi. Sebep föyün
+boyutuydu: `client_max_body_size` **20m** iken üretilen föy **25.8 MB** çıktı ve
+nginx isteği uygulamaya iletmeden **413** döndü. Ham fotoğraflar küçültülmüş JPEG
+olduğu için geçiyordu — hata tam olarak bu yüzden yalnızca föyde görünüyordu.
+
+nginx error log'undaki kanıt:
+```
+client intended to send too large body: 25797533 bytes
+```
+
+Access log'da desen nettir (föy listede ilk sırada gönderiliyor):
+`05:54:53 föy 413` → `05:55:17-23 dört fotoğraf 200` → tekrar denemeler yine 413.
+
+İki değişiklik yapıldı:
+1. **`client_max_body_size` 20m → 64m** (Cloudflare Free 100 MB'da kestiği için altında).
+2. **Föy PNG yerine JPEG** (`lib/collage.ts:sheetMimeType`, kalite 0.92). Föy baştan
+   aşağı fotoğraf ve gradyan; kayıpsız sıkıştırma dosyayı boşuna şişiriyordu. Zemin
+   tamamen doldurulduğu için saydamlık kaybı diye bir sorun yok.
+
+Ölçüldü (aynı tuval, aynı içerik):
+
+| Tuval | PNG | JPEG q=0.92 |
+|---|---|---|
+| 3200x4700 | 11.0 MB | 0.35 MB |
+| 6400x9400 | 39.4 MB | 1.0 MB |
+| 3200x4700, saf gürültü (en kötü durum) | 32.7 MB | 11.0 MB |
+
+> Föyün çözünürlüğü yüklenen fotoğrafın çözünürlüğüne göre büyüyor
+> (`getAdaptiveExportScale`, 2x-4x). **Bilinen açık:** `getDeviceAdjustedScale`
+> mobil tavanı `iPhone|iPad|iPod` user-agent'ına bakarak uyguluyor; modern iPad'ler
+> kendini `Macintosh` diye tanıttığı için o tavanın dışında kalıp 4x üretiyorlar.
+> JPEG'e geçince aciliyeti kalmadı ama düzeltilmedi.
 
 ### Sürüm tazeliği (2026-09-04)
 

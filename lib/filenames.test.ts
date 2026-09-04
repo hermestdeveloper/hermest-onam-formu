@@ -85,13 +85,13 @@ describe("driveDescription", () => {
 describe("consentSheetFileName", () => {
   it("includes method, patient and timestamp", () => {
     expect(consentSheetFileName(DATE, "UNIQUE FUE", "Ahmet Yılmaz")).toBe(
-      "hermest-visual-consent-sheet-unique_fue-ahmet_yilmaz-2026-06-27_1405.png"
+      "hermest-visual-consent-sheet-unique_fue-ahmet_yilmaz-2026-06-27_1405.jpg"
     );
   });
 
   it("drops the patient segment when no patient is selected", () => {
     expect(consentSheetFileName(DATE, "UNIQUE FUE", "")).toBe(
-      "hermest-visual-consent-sheet-unique_fue-2026-06-27_1405.png"
+      "hermest-visual-consent-sheet-unique_fue-2026-06-27_1405.jpg"
     );
   });
 });

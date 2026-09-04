@@ -71,5 +71,8 @@ export function consentSheetFileName(
     slugify(patientName),
     timeStamp(date),
   ].filter(Boolean);
-  return `${parts.join("-")}.png`;
+  // JPEG, PNG degil: foy bastan asagi fotograf ve gradyan, kayipsiz sikistirma
+  // dosyayi on kat sisiriyordu. 2026-09-03'te 25.8 MB'lik bir foy nginx'in
+  // govde sinirina takilip 413 aldi ve Drive'a hic ulasmadi.
+  return `${parts.join("-")}.jpg`;
 }
