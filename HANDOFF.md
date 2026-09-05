@@ -233,6 +233,36 @@ Deploy doğrulandı: `/api/patients?search=ahmet` → 207 sonuç, hepsi `board: 
 `docs/superpowers/specs/2026-06-27-crm-integration-design.md`,
 `docs/superpowers/plans/2026-06-27-crm-integration.md`.
 
+### İstek gövdesi sınırı iki yerde (2026-09-05)
+
+Föy JPEG'e çevrildikten sonra bile bir yükleme **400** döndü ve Drive'a ulaşmadı.
+Container log'u sebebi açıkça söylüyordu:
+
+```
+Request body exceeded 10MB for /api/patients/164880/files.
+Only the first 10MB will be available unless configured.
+```
+
+`middleware.ts` her `/api` yolunu kapsadığı için Next isteği kendi sınırında
+kesiyor; varsayılan **10 MB**. nginx'i 64m'ye çıkarmak yetmiyordu, ikinci bir
+sınır daha vardı. `next.config.ts` içinde `experimental.proxyClientMaxBodySize`
+64mb'ye alındı. Sınır artık iki yerde de aynı.
+
+> Doğrulandı: 22 MB'lik gövde artık uyarı üretmeden geçiyor (401 dönüyor çünkü
+> oturumsuz gönderildi, yani istek uçtan uca ilerliyor).
+
+### "Load failed" ne demek (2026-09-05)
+
+Bir iPad'de beş dosyanın yanında da `Load failed` göründü. Bu bir sunucu hatası
+**değil**: Safari'nin başarısız `fetch` mesajı (Chrome'da "Failed to fetch").
+O anda sunucu kayıtlarında o isteklerin izi yoktu — nginx'te satır yok, 499 yok,
+error log boş. `/api/version` yoklamaları da tam o dakika durup sonra geri geldi,
+yani cihaz o aralıkta bağlantısızdı.
+
+Mesaj artık ham hâliyle gösterilmiyor; `lib/upload.ts:describeUploadError`
+`TypeError`'ı "Bağlantı kurulamadı… İnterneti kontrol edip tekrar deneyin"
+cümlesine çeviriyor. Aynı ekranı bir daha gören kişi ne yapacağını bilsin diye.
+
 ### Föy neden JPEG (2026-09-04)
 
 Klinik "diğer fotoğraflar gitti, onam föyü gitmedi" diye bildirdi. Sebep föyün

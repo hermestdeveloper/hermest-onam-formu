@@ -9,6 +9,14 @@ const DOCUMENT_PATHS = "/((?!_next/static|_next/image).*)";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: "standalone",
+  experimental: {
+    // middleware.ts her /api yolunu kapsadigi icin Next istek govdesini kendi
+    // sinirinda kesiyor; varsayilan 10 MB. 2026-09-05'te onam foyu bu siniri
+    // asip 400 dondu ve Drive'a hic ulasmadi, container log'unda:
+    //   "Request body exceeded 10MB for /api/patients/164880/files"
+    // nginx tarafi 64m; ikisini esitliyoruz ki sinir tek yerde olsun.
+    proxyClientMaxBodySize: "64mb",
+  },
   async headers() {
     return [
       {

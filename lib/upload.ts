@@ -57,6 +57,21 @@ async function postItem(
   }
 }
 
+/**
+ * Tarayicinin ham ag hatasini klinik ekibinin anlayacagi bir cumleye cevirir.
+ *
+ * Safari basarisiz bir fetch icin "Load failed", Chrome "Failed to fetch" diyor.
+ * 2026-09-05'te ekip bir iPad'de bes dosyanin yaninda da "Load failed" gordu ve
+ * ne yapacagini bilemedi; sunucu kayitlarinda o isteklerin izi bile yoktu, yani
+ * cihaz o an baglantisizdi. Mesajin kendisi eylem soylemeli.
+ */
+function describeUploadError(e: unknown): string {
+  if (e instanceof TypeError) {
+    return "Bağlantı kurulamadı, dosya gönderilemedi. İnterneti kontrol edip tekrar deneyin.";
+  }
+  return e instanceof Error ? e.message : "Bilinmeyen hata";
+}
+
 export async function uploadItems(
   patientId: string | number,
   items: UploadItem[],
@@ -76,7 +91,7 @@ export async function uploadItems(
         onUpdate(current.key, "success");
         results.push({ key: current.key, status: "success" });
       } catch (e) {
-        const error = e instanceof Error ? e.message : "Bilinmeyen hata";
+        const error = describeUploadError(e);
         onUpdate(current.key, "error", error);
         results.push({ key: current.key, status: "error", error });
       }

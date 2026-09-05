@@ -63,6 +63,23 @@ describe("uploadItems", () => {
     expect(updates).toContain("front:success");
   });
 
+  it("aga bagli hatayi anlasilir Turkce mesaja cevirir", async () => {
+    // Safari fetch basarisiz olunca "Load failed" firlatiyor (Chrome'da
+    // "Failed to fetch"). Klinik ekrani bu metni gordu ve ne oldugunu
+    // anlayamadi; sunucuya istek hic ulasmamisti.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Load failed");
+      })
+    );
+    const items = [{ key: "sheet", filename: "s.jpg", description: "", blob: new Blob(["s"]) }];
+    const results = await uploadItems("123", items, () => {});
+    expect(results[0].status).toBe("error");
+    expect(results[0].error).toContain("Bağlantı");
+    expect(results[0].error).not.toContain("Load failed");
+  });
+
   it("sends the chosen sub folder with every item", async () => {
     const folders: (FormDataEntryValue | null)[] = [];
     vi.stubGlobal(
