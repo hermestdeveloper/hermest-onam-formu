@@ -233,6 +233,39 @@ Deploy doğrulandı: `/api/patients?search=ahmet` → 207 sonuç, hepsi `board: 
 `docs/superpowers/specs/2026-06-27-crm-integration-design.md`,
 `docs/superpowers/plans/2026-06-27-crm-integration.md`.
 
+### Yükleme sorunlarını nasıl teşhis edersin (2026-09-05)
+
+Onam trafiği artık **ayrı bir dosyada**: `/var/log/nginx/onam-access.log`. Ana
+`access.log` internet tarama botlarıyla dolu, klinik istekleri orada kayboluyordu.
+Format `onam_timed`, tanımı sunucuda `/etc/nginx/conf.d/log-timing.conf`:
+
+| Alan | Ne söyler |
+|---|---|
+| `req_len` | İsteğin boyutu — yüklenen dosya bu kadar |
+| `req_time` | İstemciden yanıta kadar toplam süre — yavaş/yarım kalan yükleme |
+| `ups_time` | Next'in harcadığı süre — CRM yavaşsa burada görünür |
+| `ups_status` | Uygulamanın döndüğü kod (nginx'inkinden farklı olabilir) |
+
+Örnek satır (12.6 MB'lik bir yükleme 10 saniye sürmüş, uygulama 45 ms'de yanıtlamış):
+```
+"POST /api/patients/0/files" 401 req_len=12583604 req_time=10.004 ups_time=0.045
+```
+
+Yükleme şikâyeti geldiğinde sırayla bak:
+1. **Bu dosyada satır var mı?** Yoksa istek sunucuya hiç ulaşmamış — cihazın
+   bağlantısı kopmuştur, ekranda "Bağlantı kurulamadı…" yazar. Kodda yapılacak yok.
+2. **Satır var, durum 4xx/5xx mi?** `ups_status` ve container log'u sebebi söyler.
+3. **Durum 200 ama `req_time` yüksek mi?** Bağlantı yavaş; `req_len`'e bakıp
+   dosyanın neden büyük olduğunu sorgula.
+
+logrotate `/var/log/nginx/*.log` kapsadığı için bu dosya da günlük dönüyor (14 gün).
+
+> **Bilinen açık:** yükleme yapan **tüm** Safari cihazları sunucuya kendini
+> `Macintosh` diye tanıtıyor, hiçbiri `iPad` demiyor — ama klinik iPad kullanıyor.
+> Yani `getDeviceAdjustedScale` içindeki mobil tavan klinikte hiç devreye girmiyor,
+> föy her zaman en yüksek ölçekte (4x, 6400x9400) üretiliyor. Zayıf bağlantıda ilk
+> kopan da bu cihaz oluyor. Düzeltmesi bekliyor.
+
 ### İstek gövdesi sınırı iki yerde (2026-09-05)
 
 Föy JPEG'e çevrildikten sonra bile bir yükleme **400** döndü ve Drive'a ulaşmadı.
