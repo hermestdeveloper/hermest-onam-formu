@@ -144,11 +144,17 @@ curl "https://onam.hermestclinic.net/api/patients?search=ahmet" | head -c 400
 Kod değişti → sunucuya gönder + yeniden build:
 ```bash
 # Lokal Mac'ten (SSH key gerekli — bkz. Obsidian hermest notu):
+# .env DEGIL, .env* — iki sebeple (2026-09-04'te kurusu yakalandi):
+#   1) `--exclude .env` yalnizca .env'i tutuyor, .env.local'i SUNUCUYA KOPYALIYOR.
+#   2) `--delete` sunucudaki .env.bak* yedeklerini siliyor, geri donus yolu kalmiyor.
 rsync -az --delete \
   --exclude node_modules --exclude .next --exclude .git \
-  --exclude .superpowers --exclude .env --exclude .DS_Store --exclude docs \
+  --exclude .superpowers --exclude '.env*' --exclude .DS_Store --exclude docs \
   -e "ssh -i ~/.ssh/id_ed25519" \
-  /Users/furkan/Works/hermest/hermest-onam-formu/  root@<SUNUCU_IP>:/opt/hermest-onam/
+  <REPO_KOKU>/  root@<SUNUCU_IP>:/opt/hermest-onam/
+
+# Once kuru calistir, ne gidecegini ve ne silinecegini gor:
+#   rsync -aznv --delete ... (ayni argumanlar)
 
 ssh root@<SUNUCU_IP> 'cd /opt/hermest-onam && docker compose up -d --build'
 ```
